@@ -1,0 +1,83 @@
+package de.mcbesser.marketplace.sidebar;
+
+import de.mcbesser.marketplace.MarketplacePlugin;
+import de.mcbesser.marketplace.HandelsblattItem;
+import de.mcbesser.marketplace.auction.AuctionManager;
+import de.mcbesser.marketplace.jobs.JobDefinition;
+import de.mcbesser.marketplace.jobs.JobManager;
+import de.mcbesser.marketplace.jobs.PlayerJob;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+import org.bukkit.scoreboard.Criteria;
+import org.bukkit.scoreboard.DisplaySlot;
+import org.bukkit.scoreboard.Objective;
+import org.bukkit.scoreboard.Scoreboard;
+
+public class MarketplaceSidebarManager {
+
+    private final MarketplacePlugin plugin;
+    private final JobManager jobManager;
+    private final AuctionManager auctionManager;
+
+    public MarketplaceSidebarManager(MarketplacePlugin plugin, JobManager jobManager, AuctionManager auctionManager) {
+        this.plugin = plugin;
+        this.jobManager = jobManager;
+        this.auctionManager = auctionManager;
+    }
+
+    public void tick() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (!hasHandelsblatt(player)) {
+                if (player.getScoreboard() != Bukkit.getScoreboardManager().getMainScoreboard()) {
+                    player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+                }
+                continue;
+            }
+            jobManager.autoStorePinnedItems(player);
+            updateSidebar(player);
+        }
+    }
+
+    private void updateSidebar(Player player) {
+        Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
+        Objective objective = scoreboard.registerNewObjective("marketplace", Criteria.DUMMY, "\u00A76Marketplace");
+        objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+
+        List<String> lines = new ArrayList<>();
+        lines.add("\u00A77Auktion");
+        lines.addAll(auctionManager.sidebarLines());
+
+        PlayerJob pinned = jobManager.getPinnedJob(player.getUniqueId());
+        if (pinned != null) {
+            JobDefinition definition = jobManager.getDefinitionFor(pinned);
+            lines.add("\u00A70");
+            lines.add("\u00A7eJob: " + cut(definition.name(), 24));
+            for (JobDefinition.JobRequirement requirement : definition.requirements()) {
+                String name = cut(jobManager.displayName(requirement.material()), 18);
+                int progress = Math.min(requirement.amount(), jobManager.progressFor(player, pinned, requirement.material()));
+                lines.add("\u00A7f" + name + " " + progress + "/" + requirement.amount());
+            }
+        }
+
+        int score = lines.size();
+        int unique = 0;
+        for (String line : lines) {
+            objective.getScore(cut(line, 38) + "\u00A7" + Integer.toHexString(unique++)).setScore(score--);
+        }
+        player.setScoreboard(scoreboard);
+    }
+
+    private boolean hasHandelsblatt(Player player) {
+        return Arrays.stream(player.getInventory().getContents())
+                .anyMatch(item -> HandelsblattItem.isHandelsblatt(plugin, item));
+    }
+
+    private String cut(String text, int max) {
+        return text.length() <= max ? text : text.substring(0, max);
+    }
+}
+
+

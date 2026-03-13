@@ -1,0 +1,7 @@
+﻿name: MarketplacePlugin
+version: 1.0.0
+main: de.mcbesser.marketplace.MarketplacePlugin
+api-version: "1.20"
+author: Codex
+
+

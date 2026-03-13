@@ -1,0 +1,20 @@
+﻿# Basis-Konfiguration f\u00fcr MarketplacePlugin
+jobs:
+  min-active-jobs: 3
+
+market:
+  listing-hours: 24
+
+trade:
+  session-timeout-minutes: 5
+
+auction:
+  default-start-price: 100
+  default-duration-seconds: 60
+
+lotto:
+  base-pot: 250
+  ticket-price: 25
+  draw-hour: 18
+
+
