@@ -4,6 +4,10 @@
 
 Der Fokus liegt auf einer einfachen Bedienung ueber GUIs. Spieler muessen nicht mit vielen Unterbefehlen arbeiten, sondern oeffnen das System ueber das `Handelsblatt` und navigieren dann durch Menues.
 
+## Kurzfassung
+
+`MarketPlace` ist ein zentrales Wirtschafts- und Handelssystem fuer Minecraft-Server. Es kombiniert Markt, Auktion, Lotto, Direkthandel, Jobs, Preisorientierung, Sidebar und Abholfach in einer gemeinsamen Bedienoberflaeche. Spieler oeffnen das System ueber das `Handelsblatt`, handeln danach fast ausschliesslich ueber Menues und koennen damit ihre Items sicher verkaufen, tauschen, versteigern oder in Aufgaben und Verlosungen einbringen.
+
 ## Was das Plugin macht
 
 Das Plugin verbindet folgende Bereiche in einem Gesamtsystem:
@@ -346,7 +350,3 @@ Ein typischer Ablauf auf einem Server kann so aussehen:
 - Das System ist stark auf GUI-Nutzung ausgelegt.
 - Die Wirtschaft funktioniert mit Vault-Anbindung am sinnvollsten, kann aber auch ohne Vault laufen.
 - Da Auktionen und Lotto direkt in die Spielwirtschaft eingreifen, sollten Ticketpreise, Basispot und allgemeine Serverwirtschaft aufeinander abgestimmt werden.
-
-## Kurzfassung
-
-`MarketPlace` ist ein zentrales Wirtschafts- und Handelssystem fuer Minecraft-Server. Es kombiniert Markt, Auktion, Lotto, Direkthandel, Jobs, Preisorientierung, Sidebar und Abholfach in einer gemeinsamen Bedienoberflaeche. Spieler oeffnen das System ueber das `Handelsblatt`, handeln danach fast ausschliesslich ueber Menues und koennen damit ihre Items sicher verkaufen, tauschen, versteigern oder in Aufgaben und Verlosungen einbringen.
