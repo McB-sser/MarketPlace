@@ -17,6 +17,7 @@ import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 
 public class MarketplaceSidebarManager {
+    private static final String OBJECTIVE_NAME = "marketplace";
 
     private final MarketplacePlugin plugin;
     private final JobManager jobManager;
@@ -36,7 +37,7 @@ public class MarketplaceSidebarManager {
 
     public void refresh(Player player) {
         if (!isHoldingHandelsblatt(player)) {
-            if (player.getScoreboard() != Bukkit.getScoreboardManager().getMainScoreboard()) {
+            if (isShowingOwnBoard(player)) {
                 player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
             }
             return;
@@ -47,7 +48,7 @@ public class MarketplaceSidebarManager {
 
     private void updateSidebar(Player player) {
         Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
-        Objective objective = scoreboard.registerNewObjective("marketplace", Criteria.DUMMY, "\u00A76Marketplace");
+        Objective objective = scoreboard.registerNewObjective(OBJECTIVE_NAME, Criteria.DUMMY, "\u00A76Marketplace");
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
 
         List<String> lines = new ArrayList<>();
@@ -77,6 +78,11 @@ public class MarketplaceSidebarManager {
     private boolean isHoldingHandelsblatt(Player player) {
         ItemStack mainHand = player.getInventory().getItemInMainHand();
         return HandelsblattItem.isHandelsblatt(plugin, mainHand);
+    }
+
+    private boolean isShowingOwnBoard(Player player) {
+        Scoreboard scoreboard = player.getScoreboard();
+        return scoreboard != null && scoreboard.getObjective(OBJECTIVE_NAME) != null;
     }
 
     private String cut(String text, int max) {
