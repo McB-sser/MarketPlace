@@ -58,7 +58,7 @@ public class MarketplacePlugin extends JavaPlugin {
             player.discoverRecipe(recipe.getKey());
         }
         getServer().getPluginManager().registerEvents(
-                new InteractionListener(this, marketplaceMenu, jobManager, marketManager, lottoManager, tradeManager, auctionManager, claimStorage),
+                new InteractionListener(this, marketplaceMenu, jobManager, marketManager, lottoManager, tradeManager, auctionManager, claimStorage, marketplaceSidebarManager),
                 this
         );
 

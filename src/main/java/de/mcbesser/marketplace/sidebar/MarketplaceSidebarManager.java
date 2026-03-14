@@ -7,10 +7,10 @@ import de.mcbesser.marketplace.jobs.JobDefinition;
 import de.mcbesser.marketplace.jobs.JobManager;
 import de.mcbesser.marketplace.jobs.PlayerJob;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.scoreboard.Criteria;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
@@ -30,15 +30,19 @@ public class MarketplaceSidebarManager {
 
     public void tick() {
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (!hasHandelsblatt(player)) {
-                if (player.getScoreboard() != Bukkit.getScoreboardManager().getMainScoreboard()) {
-                    player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
-                }
-                continue;
-            }
-            jobManager.autoStorePinnedItems(player);
-            updateSidebar(player);
+            refresh(player);
         }
+    }
+
+    public void refresh(Player player) {
+        if (!isHoldingHandelsblatt(player)) {
+            if (player.getScoreboard() != Bukkit.getScoreboardManager().getMainScoreboard()) {
+                player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+            }
+            return;
+        }
+        jobManager.autoStorePinnedItems(player);
+        updateSidebar(player);
     }
 
     private void updateSidebar(Player player) {
@@ -70,9 +74,9 @@ public class MarketplaceSidebarManager {
         player.setScoreboard(scoreboard);
     }
 
-    private boolean hasHandelsblatt(Player player) {
-        return Arrays.stream(player.getInventory().getContents())
-                .anyMatch(item -> HandelsblattItem.isHandelsblatt(plugin, item));
+    private boolean isHoldingHandelsblatt(Player player) {
+        ItemStack mainHand = player.getInventory().getItemInMainHand();
+        return HandelsblattItem.isHandelsblatt(plugin, mainHand);
     }
 
     private String cut(String text, int max) {

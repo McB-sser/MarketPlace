@@ -6,6 +6,7 @@ import de.mcbesser.marketplace.gui.MenuType;
 import de.mcbesser.marketplace.jobs.JobManager;
 import de.mcbesser.marketplace.lotto.LottoManager;
 import de.mcbesser.marketplace.market.MarketManager;
+import de.mcbesser.marketplace.sidebar.MarketplaceSidebarManager;
 import de.mcbesser.marketplace.storage.ClaimStorage;
 import de.mcbesser.marketplace.trade.TradeManager;
 import io.papermc.paper.event.player.AsyncChatEvent;
@@ -18,6 +19,8 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 
 public class InteractionListener implements Listener {
 
@@ -29,10 +32,11 @@ public class InteractionListener implements Listener {
     private final TradeManager tradeManager;
     private final AuctionManager auctionManager;
     private final ClaimStorage claimStorage;
+    private final MarketplaceSidebarManager marketplaceSidebarManager;
 
     public InteractionListener(MarketplacePlugin plugin, MarketplaceMenu marketplaceMenu, JobManager jobManager, MarketManager marketManager,
                                LottoManager lottoManager, TradeManager tradeManager, AuctionManager auctionManager,
-                               ClaimStorage claimStorage) {
+                               ClaimStorage claimStorage, MarketplaceSidebarManager marketplaceSidebarManager) {
         this.plugin = plugin;
         this.marketplaceMenu = marketplaceMenu;
         this.jobManager = jobManager;
@@ -41,6 +45,7 @@ public class InteractionListener implements Listener {
         this.tradeManager = tradeManager;
         this.auctionManager = auctionManager;
         this.claimStorage = claimStorage;
+        this.marketplaceSidebarManager = marketplaceSidebarManager;
     }
 
     @EventHandler
@@ -109,7 +114,19 @@ public class InteractionListener implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
-        event.getPlayer().discoverRecipe(HandelsblattItem.createRecipe(plugin).getKey());
+        Player player = event.getPlayer();
+        player.discoverRecipe(HandelsblattItem.createRecipe(plugin).getKey());
+        marketplaceSidebarManager.refresh(player);
+    }
+
+    @EventHandler
+    public void onItemHeld(PlayerItemHeldEvent event) {
+        marketplaceSidebarManager.refresh(event.getPlayer());
+    }
+
+    @EventHandler
+    public void onSwapHandItems(PlayerSwapHandItemsEvent event) {
+        marketplaceSidebarManager.refresh(event.getPlayer());
     }
 }
 
