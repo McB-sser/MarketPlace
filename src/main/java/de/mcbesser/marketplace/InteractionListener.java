@@ -121,12 +121,12 @@ public class InteractionListener implements Listener {
 
     @EventHandler
     public void onItemHeld(PlayerItemHeldEvent event) {
-        marketplaceSidebarManager.refresh(event.getPlayer());
+        plugin.getServer().getScheduler().runTask(plugin, () -> marketplaceSidebarManager.refresh(event.getPlayer()));
     }
 
     @EventHandler
     public void onSwapHandItems(PlayerSwapHandItemsEvent event) {
-        marketplaceSidebarManager.refresh(event.getPlayer());
+        plugin.getServer().getScheduler().runTask(plugin, () -> marketplaceSidebarManager.refresh(event.getPlayer()));
     }
 }
 
