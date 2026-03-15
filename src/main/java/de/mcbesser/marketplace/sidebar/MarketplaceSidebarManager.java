@@ -1,5 +1,6 @@
 package de.mcbesser.marketplace.sidebar;
 
+import de.mcbesser.marketplace.EconomyService;
 import de.mcbesser.marketplace.MarketplacePlugin;
 import de.mcbesser.marketplace.HandelsblattItem;
 import de.mcbesser.marketplace.auction.AuctionManager;
@@ -20,11 +21,13 @@ public class MarketplaceSidebarManager {
     private static final String OBJECTIVE_NAME = "marketplace";
 
     private final MarketplacePlugin plugin;
+    private final EconomyService economyService;
     private final JobManager jobManager;
     private final AuctionManager auctionManager;
 
-    public MarketplaceSidebarManager(MarketplacePlugin plugin, JobManager jobManager, AuctionManager auctionManager) {
+    public MarketplaceSidebarManager(MarketplacePlugin plugin, EconomyService economyService, JobManager jobManager, AuctionManager auctionManager) {
         this.plugin = plugin;
+        this.economyService = economyService;
         this.jobManager = jobManager;
         this.auctionManager = auctionManager;
     }
@@ -52,6 +55,9 @@ public class MarketplaceSidebarManager {
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
 
         List<String> lines = new ArrayList<>();
+        lines.add("\u00A7eKontostand");
+        lines.add("\u00A76" + formatCt(player) + " CT");
+        lines.add("\u00A70");
         lines.add("\u00A77Auktion");
         lines.addAll(auctionManager.sidebarLines());
 
@@ -87,6 +93,10 @@ public class MarketplaceSidebarManager {
 
     private String cut(String text, int max) {
         return text.length() <= max ? text : text.substring(0, max);
+    }
+
+    private String formatCt(Player player) {
+        return Integer.toString((int) economyService.getBalance(player.getUniqueId()));
     }
 }
 

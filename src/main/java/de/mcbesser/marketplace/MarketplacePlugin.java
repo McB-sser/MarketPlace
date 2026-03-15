@@ -45,7 +45,7 @@ public class MarketplacePlugin extends JavaPlugin {
             tradeManager = new TradeManager(this, economyService, claimStorage);
             auctionManager = new AuctionManager(this, economyService, claimStorage);
             marketplaceMenu = new MarketplaceMenu(jobManager, marketManager, lottoManager, tradeManager, auctionManager, claimStorage);
-            marketplaceSidebarManager = new MarketplaceSidebarManager(this, jobManager, auctionManager);
+            marketplaceSidebarManager = new MarketplaceSidebarManager(this, economyService, jobManager, auctionManager);
         } catch (IOException exception) {
             getLogger().severe("Initialisierung fehlgeschlagen: " + exception.getMessage());
             Bukkit.getPluginManager().disablePlugin(this);
