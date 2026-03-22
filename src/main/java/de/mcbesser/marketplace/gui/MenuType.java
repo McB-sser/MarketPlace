@@ -3,6 +3,7 @@ package de.mcbesser.marketplace.gui;
 public enum MenuType {
     HUB,
     JOBS,
+    JOB_CREATE,
     JOB_STORAGE,
     MARKET_MAIN,
     MARKET_LIST,

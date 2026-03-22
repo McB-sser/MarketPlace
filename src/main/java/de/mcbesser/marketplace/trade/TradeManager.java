@@ -6,6 +6,7 @@ import de.mcbesser.marketplace.gui.GuiItems;
 import de.mcbesser.marketplace.gui.MenuHolder;
 import de.mcbesser.marketplace.gui.MenuType;
 import de.mcbesser.marketplace.storage.ClaimStorage;
+import de.mcbesser.marketplace.util.CurrencyFormatter;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
@@ -89,14 +90,14 @@ public class TradeManager {
         }
         inventory.setItem(27, GuiItems.button(Material.HOPPER, "\u00A7aHand-Item hinzufuegen", List.of("\u00A77Nimmt das komplette Stack aus deiner Hand")));
         inventory.setItem(28, GuiItems.button(Material.BARRIER, "\u00A7cLetztes eigenes Item entfernen", List.of("\u00A77Legt dein letztes Angebot zurueck")));
-        inventory.setItem(30, GuiItems.button(Material.GOLD_NUGGET, "\u00A76Coins -10", List.of("\u00A77Verringert dein Coin-Angebot")));
-        inventory.setItem(31, GuiItems.button(Material.GOLD_INGOT, "\u00A76Coins +10", List.of("\u00A77Erhoeht dein Coin-Angebot")));
-        inventory.setItem(32, GuiItems.button(Material.GOLD_BLOCK, "\u00A76Coins +100", List.of("\u00A77Erhoeht dein Coin-Angebot")));
+        inventory.setItem(30, GuiItems.button(Material.GOLD_NUGGET, "\u00A76CT -10", List.of("\u00A77Verringert dein CraftTaler-Angebot")));
+        inventory.setItem(31, GuiItems.button(Material.GOLD_INGOT, "\u00A76CT +10", List.of("\u00A77Erhoeht dein CraftTaler-Angebot")));
+        inventory.setItem(32, GuiItems.button(Material.GOLD_BLOCK, "\u00A76CT +100", List.of("\u00A77Erhoeht dein CraftTaler-Angebot")));
         inventory.setItem(34, GuiItems.button(Material.EMERALD_BLOCK, "\u00A7aBestaetigen", List.of(statusLine(session, first), "\u00A77Beide Seiten m\u00fcssen bestaetigen")));
         inventory.setItem(35, GuiItems.button(Material.REDSTONE_BLOCK, "\u00A7cAbbrechen", List.of("\u00A77Handel beenden")));
         inventory.setItem(40, GuiItems.button(Material.SUNFLOWER,
-                "\u00A7eDein Angebot: " + (int) (first ? session.getFirstCoins() : session.getSecondCoins()) + " Coins",
-                List.of("\u00A77Gegenseite: " + (int) (first ? session.getSecondCoins() : session.getFirstCoins()) + " Coins")));
+                "\u00A7eDein Angebot: " + CurrencyFormatter.shortAmount(first ? session.getFirstCoins() : session.getSecondCoins()),
+                List.of("\u00A77Gegenseite: " + CurrencyFormatter.shortAmount(first ? session.getSecondCoins() : session.getFirstCoins()))));
         player.openInventory(inventory);
     }
 
@@ -204,7 +205,7 @@ public class TradeManager {
         double current = first ? session.getFirstCoins() : session.getSecondCoins();
         double next = Math.max(0, current + delta);
         if (next > economyService.getBalance(player.getUniqueId())) {
-            player.sendMessage("Nicht genug Coins f\u00fcr dieses Angebot.");
+            player.sendMessage("Nicht genug CraftTaler fuer dieses Angebot.");
             return;
         }
         if (first) {

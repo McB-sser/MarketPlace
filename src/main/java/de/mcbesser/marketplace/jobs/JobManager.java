@@ -2,10 +2,12 @@ package de.mcbesser.marketplace.jobs;
 
 import de.mcbesser.marketplace.EconomyService;
 import de.mcbesser.marketplace.MarketplacePlugin;
+import de.mcbesser.marketplace.pricing.PriceGuideManager;
 import de.mcbesser.marketplace.gui.GuiItems;
 import de.mcbesser.marketplace.gui.MenuHolder;
 import de.mcbesser.marketplace.gui.MenuType;
 import de.mcbesser.marketplace.storage.ClaimStorage;
+import de.mcbesser.marketplace.util.CurrencyFormatter;
 import de.mcbesser.marketplace.util.GermanItemNames;
 import java.io.File;
 import java.io.IOException;
@@ -30,80 +32,168 @@ public class JobManager {
 
     private static final int MIN_ACTIVE_JOBS = 3;
     private static final int STORAGE_SIZE = 18;
+    private static final int[] JOB_CREATE_ITEM_SLOTS = {11, 12, 13, 14, 15};
 
     private final MarketplacePlugin plugin;
     private final EconomyService economyService;
     private final ClaimStorage claimStorage;
+    private final PriceGuideManager priceGuideManager;
     private final File file;
     private final Map<UUID, PlayerJobProfile> profiles = new HashMap<>();
+    private final Map<UUID, JobCreateState> createStates = new HashMap<>();
+    private final List<PlayerJob> publicJobs = new ArrayList<>();
     private final List<JobDefinition> definitions = buildDefinitions();
 
-    public JobManager(MarketplacePlugin plugin, EconomyService economyService, ClaimStorage claimStorage) throws IOException {
+    public JobManager(MarketplacePlugin plugin, EconomyService economyService, ClaimStorage claimStorage,
+                      PriceGuideManager priceGuideManager) throws IOException {
         this.plugin = plugin;
         this.economyService = economyService;
         this.claimStorage = claimStorage;
+        this.priceGuideManager = priceGuideManager;
         this.file = new File(plugin.getDataFolder(), "jobs.yml");
         load();
     }
 
     public void openJobs(Player player) {
+        openJobs(player, 0);
+    }
+
+    public void openJobs(Player player, int page) {
         ensureJobs(player.getUniqueId());
-        PlayerJobProfile profile = getProfile(player.getUniqueId());
-        Inventory inventory = Bukkit.createInventory(new MenuHolder(MenuType.JOBS), 36, "Jobs");
-        int slot = 10;
+        List<PlayerJob> jobs = visibleJobs(player.getUniqueId());
+        int maxPage = jobs.isEmpty() ? 0 : (jobs.size() - 1) / 45;
+        int safePage = Math.max(0, Math.min(page, maxPage));
+        Inventory inventory = Bukkit.createInventory(new MenuHolder(MenuType.JOBS, safePage, ""), 54, "Jobs");
+
+        int start = safePage * 45;
         long now = System.currentTimeMillis();
-        for (PlayerJob job : profile.getActiveJobs()) {
-            JobDefinition definition = getDefinition(job.getDefinitionId());
-            List<String> lore = new ArrayList<>();
-            for (JobDefinition.JobRequirement requirement : definition.requirements()) {
-                lore.add("\u00A77" + displayName(requirement.material()) + ": \u00A7f"
-                        + progressFor(player, job, requirement.material()) + "/" + requirement.amount());
+        for (int slot = 0; slot < 45; slot++) {
+            int index = start + slot;
+            if (index >= jobs.size()) {
+                break;
             }
-            lore.add("\u00A77Belohnung: \u00A76" + (int) definition.reward() + " Coins");
-            lore.add("\u00A77Restzeit: \u00A7f" + formatDuration(job.getExpiresAt() - now));
-            lore.add("\u00A7aLinksklick: aus Inventar/Kiste abgeben");
-            lore.add("\u00A7eRechtsklick: anpinnen/l\u00f6sen");
-            lore.add("\u00A7bShift-Klick: Job-Kiste \u00f6ffnen");
-            if (job.getInstanceId().equals(profile.getPinnedJobInstanceId())) {
-                lore.add("\u00A76Aktuell angepinnt");
-            }
-            inventory.setItem(slot++, GuiItems.button(iconFor(definition), "&a" + definition.name(), lore));
+            inventory.setItem(slot, createJobDisplay(player, jobs.get(index), now));
         }
-        inventory.setItem(31, GuiItems.button(Material.CLOCK, "&eJobsystem", List.of("&73 Jobs pro Spieler", "&71 Tag Cooldown pro Jobtyp")));
+
+        inventory.setItem(45, GuiItems.button(Material.ARROW, "&eZurueck", List.of("&7Vorherige Seite")));
+        inventory.setItem(49, GuiItems.button(Material.WRITABLE_BOOK, "&aSpieler-Job erstellen",
+                List.of("&7Materialliste und Belohnung festlegen", "&7Belohnung wird direkt reserviert")));
+        inventory.setItem(53, GuiItems.button(Material.ARROW, "&eWeiter", List.of("&7Naechste Seite")));
         player.openInventory(inventory);
     }
 
-    public void handleClick(Player player, int rawSlot, ClickType clickType) {
-        PlayerJobProfile profile = getProfile(player.getUniqueId());
-        int index = rawSlot - 10;
-        if (index < 0 || index >= profile.getActiveJobs().size()) {
+    public void openCreateMenu(Player player) {
+        JobCreateState state = createStates.computeIfAbsent(player.getUniqueId(),
+                ignored -> new JobCreateState(defaultRewardFor(player, null)));
+        renderCreateMenu(player, state);
+    }
+
+    public void handleClick(Player player, InventoryClickEvent event, int page) {
+        if (event.getRawSlot() == 45 && page > 0) {
+            openJobs(player, page - 1);
             return;
         }
-        PlayerJob job = profile.getActiveJobs().get(index);
-        if (clickType.isShiftClick()) {
-            profile.setPinnedJobInstanceId(job.getInstanceId());
-            save();
-            openStorage(player, job.getInstanceId());
+        if (event.getRawSlot() == 49) {
+            openCreateMenu(player);
             return;
         }
-        if (clickType.isRightClick()) {
-            if (job.getInstanceId().equals(profile.getPinnedJobInstanceId())) {
-                profile.setPinnedJobInstanceId(null);
-                player.sendMessage("Job gel\u00f6st.");
-            } else {
-                profile.setPinnedJobInstanceId(job.getInstanceId());
-                player.sendMessage("Job angepinnt.");
+        if (event.getRawSlot() == 53 && ((page + 1) * 45) < visibleJobs(player.getUniqueId()).size()) {
+            openJobs(player, page + 1);
+            return;
+        }
+        if (event.getRawSlot() < 0 || event.getRawSlot() >= 45) {
+            return;
+        }
+
+        List<PlayerJob> jobs = visibleJobs(player.getUniqueId());
+        int index = page * 45 + event.getRawSlot();
+        if (index >= jobs.size()) {
+            return;
+        }
+
+        PlayerJob job = jobs.get(index);
+        if (job.isCustom()) {
+            handleCustomJobClick(player, job, event.getClick(), page);
+            return;
+        }
+        handlePersonalJobClick(player, job, event.getClick(), page);
+    }
+
+    public void handleCreateClick(Player player, InventoryClickEvent event) {
+        JobCreateState state = createStates.computeIfAbsent(player.getUniqueId(),
+                ignored -> new JobCreateState(defaultRewardFor(player, null)));
+
+        if (event.getRawSlot() == 22 || event.getRawSlot() == 31) {
+            adjustSelectedAmount(state, event.getClick().isRightClick() ? -1 : 1);
+            renderCreateMenu(player, state);
+            return;
+        }
+
+        if (handleDraftItemPlacement(event, state)) {
+            applySuggestedReward(player, state);
+            renderCreateMenu(player, state);
+            return;
+        }
+
+        int rawSlot = event.getRawSlot();
+        int itemIndex = indexOfCreateSlot(rawSlot);
+        if (itemIndex >= 0) {
+            if (itemIndex < state.getItems().size()) {
+                if (event.getClick().isLeftClick() || event.getClick().isRightClick()) {
+                    state.setSelectedIndex(itemIndex);
+                    adjustSelectedAmount(state, event.getClick().isRightClick() ? -1 : 1);
+                } else if (event.getClick().isShiftClick() && (event.getCursor() == null || event.getCursor().getType().isAir())) {
+                    state.getItems().remove(itemIndex);
+                    if (state.getSelectedIndex() >= state.getItems().size()) {
+                        state.setSelectedIndex(Math.max(0, state.getItems().size() - 1));
+                    }
+                    applySuggestedReward(player, state);
+                } else {
+                    state.setSelectedIndex(itemIndex);
+                }
             }
-            save();
-            openJobs(player);
+            renderCreateMenu(player, state);
             return;
         }
-        deliverFromInventoryAndStorage(player, profile, job.getInstanceId());
-        openJobs(player);
+
+        switch (rawSlot) {
+            case 23 -> applySuggestedReward(player, state);
+            case 28 -> adjustSelectedAmount(state, -10000);
+            case 29 -> adjustSelectedAmount(state, -1000);
+            case 30 -> adjustSelectedAmount(state, -100);
+            case 31 -> adjustSelectedAmount(state, -10);
+            case 32 -> adjustSelectedAmount(state, event.getClick().isRightClick() ? -1 : 1);
+            case 33 -> adjustSelectedAmount(state, 10);
+            case 34 -> adjustSelectedAmount(state, 100);
+            case 35 -> adjustSelectedAmount(state, 1000);
+            case 36 -> adjustSelectedAmount(state, 10000);
+            case 45 -> openJobs(player);
+            case 46 -> adjustReward(state, -1000, player);
+            case 47 -> adjustReward(state, -100, player);
+            case 48 -> adjustReward(state, -10, player);
+            case 49 -> {
+                if (event.getClick().isShiftClick()) {
+                    applySuggestedReward(player, state);
+                } else {
+                    adjustReward(state, event.getClick().isRightClick() ? -1 : 1, player);
+                }
+            }
+            case 50 -> adjustReward(state, 10, player);
+            case 51 -> adjustReward(state, 100, player);
+            case 52 -> adjustReward(state, 1000, player);
+            case 53 -> {
+                createPublicJob(player, state);
+                return;
+            }
+            default -> {
+                return;
+            }
+        }
+        renderCreateMenu(player, state);
     }
 
     public void openStorage(Player player, String instanceId) {
-        PlayerJob job = findJob(player.getUniqueId(), instanceId);
+        PlayerJob job = findPersonalJob(player.getUniqueId(), instanceId);
         if (job == null) {
             player.sendMessage("Job nicht gefunden.");
             return;
@@ -112,9 +202,8 @@ public class JobManager {
         for (int i = 0; i < Math.min(STORAGE_SIZE, job.getStoredItems().size()); i++) {
             inventory.setItem(i, job.getStoredItems().get(i).clone());
         }
-        JobDefinition definition = getDefinition(job.getDefinitionId());
         List<String> lore = new ArrayList<>();
-        for (JobDefinition.JobRequirement requirement : definition.requirements()) {
+        for (JobDefinition.JobRequirement requirement : requirementsFor(job)) {
             lore.add("\u00A77" + displayName(requirement.material()) + ": \u00A7f"
                     + progressFor(player, job, requirement.material()) + "/" + requirement.amount());
         }
@@ -124,13 +213,13 @@ public class JobManager {
     }
 
     public void handleStorageClick(Player player, InventoryClickEvent event, String instanceId) {
-        PlayerJob job = findJob(player.getUniqueId(), instanceId);
+        PlayerJob job = findPersonalJob(player.getUniqueId(), instanceId);
         if (job == null) {
             player.closeInventory();
             return;
         }
         if (event.getRawSlot() == 26) {
-            deliverFromInventoryAndStorage(player, getProfile(player.getUniqueId()), instanceId);
+            deliverFromInventoryAndStorage(player, getProfile(player.getUniqueId()), job, true);
             openStorage(player, instanceId);
             return;
         }
@@ -146,7 +235,7 @@ public class JobManager {
     }
 
     public void handleStorageClose(Player player, String instanceId, Inventory inventory) {
-        PlayerJob job = findJob(player.getUniqueId(), instanceId);
+        PlayerJob job = findPersonalJob(player.getUniqueId(), instanceId);
         if (job == null) {
             return;
         }
@@ -161,13 +250,24 @@ public class JobManager {
             List<PlayerJob> expired = profile.getActiveJobs().stream().filter(job -> job.getExpiresAt() <= now).toList();
             for (PlayerJob job : expired) {
                 returnStoredItems(playerId, job);
-                if (job.getInstanceId().equals(profile.getPinnedJobInstanceId())) {
-                    profile.setPinnedJobInstanceId(null);
-                }
+                clearPinned(job.getInstanceId());
             }
             profile.getActiveJobs().removeIf(job -> job.getExpiresAt() <= now);
             ensureJobs(playerId);
         }
+
+        List<PlayerJob> expiredPublic = publicJobs.stream().filter(job -> job.getExpiresAt() <= now).toList();
+        for (PlayerJob job : expiredPublic) {
+            if (job.getCreatorId() != null) {
+                economyService.deposit(job.getCreatorId(), job.getRewardOverride());
+                Player creator = Bukkit.getPlayer(job.getCreatorId());
+                if (creator != null) {
+                    creator.sendMessage("Dein Spieler-Job " + nameFor(job) + " ist abgelaufen. Budget zurueckerstattet.");
+                }
+            }
+            clearPinned(job.getInstanceId());
+        }
+        publicJobs.removeIf(job -> job.getExpiresAt() <= now);
         save();
     }
 
@@ -178,17 +278,14 @@ public class JobManager {
             yaml.set(root + ".pinned", entry.getValue().getPinnedJobInstanceId());
             int index = 0;
             for (PlayerJob job : entry.getValue().getActiveJobs()) {
-                String path = root + ".jobs." + index++;
-                yaml.set(path + ".instanceId", job.getInstanceId());
-                yaml.set(path + ".definitionId", job.getDefinitionId());
-                yaml.set(path + ".createdAt", job.getCreatedAt());
-                yaml.set(path + ".expiresAt", job.getExpiresAt());
-                yaml.set(path + ".delivered", job.getDelivered());
-                yaml.set(path + ".storedItems", job.getStoredItems());
+                saveJob(yaml, root + ".jobs." + index++, job);
             }
             for (Map.Entry<String, Long> cooldown : entry.getValue().getCooldowns().entrySet()) {
                 yaml.set(root + ".cooldowns." + cooldown.getKey(), cooldown.getValue());
             }
+        }
+        for (int i = 0; i < publicJobs.size(); i++) {
+            saveJob(yaml, "publicJobs." + i, publicJobs.get(i));
         }
         try {
             yaml.save(file);
@@ -205,25 +302,32 @@ public class JobManager {
         return findJob(playerId, profile.getPinnedJobInstanceId());
     }
 
-    public JobDefinition getDefinitionFor(PlayerJob job) {
-        return getDefinition(job.getDefinitionId());
+    public List<JobDefinition.JobRequirement> requirementsFor(PlayerJob job) {
+        return job.isCustom() ? job.getCustomRequirements() : getDefinition(job.getDefinitionId()).requirements();
+    }
+
+    public String nameFor(PlayerJob job) {
+        return job.isCustom() ? job.getCustomName() : getDefinition(job.getDefinitionId()).name();
+    }
+
+    public double rewardFor(PlayerJob job) {
+        return job.isCustom() ? job.getRewardOverride() : getDefinition(job.getDefinitionId()).reward();
     }
 
     public int progressFor(Player player, PlayerJob job, Material material) {
         int delivered = job.getDelivered().getOrDefault(material.name(), 0);
-        int stored = countStored(job, material);
+        int stored = job.isCustom() ? 0 : countStored(job, material);
         int inv = countInventory(player, material);
         return delivered + stored + inv;
     }
 
     public void autoStorePinnedItems(Player player) {
         PlayerJob pinned = getPinnedJob(player.getUniqueId());
-        if (pinned == null) {
+        if (pinned == null || pinned.isCustom()) {
             return;
         }
         boolean changed = false;
-        JobDefinition definition = getDefinition(pinned.getDefinitionId());
-        for (JobDefinition.JobRequirement requirement : definition.requirements()) {
+        for (JobDefinition.JobRequirement requirement : requirementsFor(pinned)) {
             int remaining = remainingAllowed(pinned, requirement.material());
             if (remaining <= 0) {
                 continue;
@@ -255,72 +359,351 @@ public class JobManager {
             throw new IOException("jobs.yml konnte nicht erstellt werden.");
         }
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
+
         ConfigurationSection playersSection = yaml.getConfigurationSection("players");
-        if (playersSection == null) {
-            return;
+        if (playersSection != null) {
+            for (String playerKey : playersSection.getKeys(false)) {
+                UUID playerId = UUID.fromString(playerKey);
+                PlayerJobProfile profile = new PlayerJobProfile();
+                profile.setPinnedJobInstanceId(yaml.getString("players." + playerKey + ".pinned"));
+
+                ConfigurationSection jobsSection = yaml.getConfigurationSection("players." + playerKey + ".jobs");
+                if (jobsSection != null) {
+                    for (String key : jobsSection.getKeys(false)) {
+                        PlayerJob job = loadJob(yaml, "players." + playerKey + ".jobs." + key);
+                        if (job != null) {
+                            profile.getActiveJobs().add(job);
+                        }
+                    }
+                }
+
+                ConfigurationSection cooldowns = yaml.getConfigurationSection("players." + playerKey + ".cooldowns");
+                if (cooldowns != null) {
+                    for (String key : cooldowns.getKeys(false)) {
+                        profile.getCooldowns().put(key, cooldowns.getLong(key));
+                    }
+                }
+                profiles.put(playerId, profile);
+            }
         }
-        for (String playerKey : playersSection.getKeys(false)) {
-            UUID playerId = UUID.fromString(playerKey);
-            PlayerJobProfile profile = new PlayerJobProfile();
-            profile.setPinnedJobInstanceId(yaml.getString("players." + playerKey + ".pinned"));
-            ConfigurationSection jobsSection = yaml.getConfigurationSection("players." + playerKey + ".jobs");
-            if (jobsSection != null) {
-                for (String key : jobsSection.getKeys(false)) {
-                    String base = "players." + playerKey + ".jobs." + key;
-                    PlayerJob job = new PlayerJob(
-                            yaml.getString(base + ".instanceId"),
-                            yaml.getString(base + ".definitionId"),
-                            yaml.getLong(base + ".createdAt"),
-                            yaml.getLong(base + ".expiresAt")
-                    );
-                    ConfigurationSection delivered = yaml.getConfigurationSection(base + ".delivered");
-                    if (delivered != null) {
-                        for (String material : delivered.getKeys(false)) {
-                            job.getDelivered().put(material, delivered.getInt(material));
-                        }
-                    }
-                    List<?> stored = yaml.getList(base + ".storedItems");
-                    if (stored != null) {
-                        for (Object entry : stored) {
-                            if (entry instanceof ItemStack item) {
-                                job.getStoredItems().add(item);
-                            }
-                        }
-                    }
-                    profile.getActiveJobs().add(job);
+
+        ConfigurationSection publicSection = yaml.getConfigurationSection("publicJobs");
+        if (publicSection != null) {
+            for (String key : publicSection.getKeys(false)) {
+                PlayerJob job = loadJob(yaml, "publicJobs." + key);
+                if (job != null) {
+                    publicJobs.add(job);
                 }
             }
-            ConfigurationSection cooldowns = yaml.getConfigurationSection("players." + playerKey + ".cooldowns");
-            if (cooldowns != null) {
-                for (String key : cooldowns.getKeys(false)) {
-                    profile.getCooldowns().put(key, cooldowns.getLong(key));
-                }
-            }
-            profiles.put(playerId, profile);
         }
     }
 
-    private void deliverFromInventoryAndStorage(Player player, PlayerJobProfile profile, String instanceId) {
-        PlayerJob job = findJob(player.getUniqueId(), instanceId);
-        if (job == null) {
-            player.sendMessage("Job nicht gefunden.");
+    private void handlePersonalJobClick(Player player, PlayerJob job, ClickType clickType, int page) {
+        PlayerJobProfile profile = getProfile(player.getUniqueId());
+        if (clickType.isShiftClick()) {
+            profile.setPinnedJobInstanceId(job.getInstanceId());
+            save();
+            openStorage(player, job.getInstanceId());
             return;
         }
-        JobDefinition definition = getDefinition(job.getDefinitionId());
-        int deliveredAny = 0;
+        if (clickType.isRightClick()) {
+            togglePinned(player, profile, job);
+            openJobs(player, page);
+            return;
+        }
+        deliverFromInventoryAndStorage(player, profile, job, true);
+        openJobs(player, page);
+    }
 
-        for (JobDefinition.JobRequirement requirement : definition.requirements()) {
+    private void handleCustomJobClick(Player player, PlayerJob job, ClickType clickType, int page) {
+        if (clickType.isShiftClick()) {
+            player.sendMessage("Spieler-Jobs haben keine Job-Kiste.");
+            return;
+        }
+        if (clickType.isRightClick()) {
+            togglePinned(player, getProfile(player.getUniqueId()), job);
+            openJobs(player, page);
+            return;
+        }
+        deliverPublicJob(player, job);
+        openJobs(player, page);
+    }
+
+    private void togglePinned(Player player, PlayerJobProfile profile, PlayerJob job) {
+        if (job.getInstanceId().equals(profile.getPinnedJobInstanceId())) {
+            profile.setPinnedJobInstanceId(null);
+            player.sendMessage("Job geloest.");
+        } else {
+            profile.setPinnedJobInstanceId(job.getInstanceId());
+            player.sendMessage("Job angepinnt.");
+        }
+        save();
+    }
+
+    private void renderCreateMenu(Player player, JobCreateState state) {
+        Inventory inventory = Bukkit.createInventory(new MenuHolder(MenuType.JOB_CREATE), 54, "Spieler-Job");
+        for (int slot : JOB_CREATE_ITEM_SLOTS) {
+            inventory.setItem(slot, GuiItems.button(Material.GREEN_STAINED_GLASS_PANE, "&aMaterial ziehen",
+                    List.of("&7Lege bis zu 5 Items fest", "&7Rechtsklick entfernt den Eintrag")));
+        }
+        for (int i = 0; i < state.getItems().size() && i < JOB_CREATE_ITEM_SLOTS.length; i++) {
+            JobCreateState.JobDraftItem draftItem = state.getItems().get(i);
+            List<String> lore = new ArrayList<>();
+            lore.add("&7Menge: &f" + draftItem.amount());
+            lore.add("&7Klick zum Auswaehlen");
+            lore.add(i == state.getSelectedIndex() ? "&aAktiv" : "&7Nicht aktiv");
+            inventory.setItem(JOB_CREATE_ITEM_SLOTS[i], GuiItems.button(draftItem.material(), "&a" + displayName(draftItem.material()), lore));
+        }
+
+        JobCreateState.JobDraftItem selected = state.ensureSelected();
+        double suggestedReward = suggestedReward(player, state);
+        inventory.setItem(22, selected == null
+                ? GuiItems.button(Material.BOOK, "&eMaterialliste", List.of("&7Lege zuerst ein Item auf das grune Board"))
+                : GuiItems.button(selected.material(), "&eAusgewaehlt: " + displayName(selected.material()),
+                List.of("&7Menge: &f" + selected.amount(), "&7Links +1 | Rechts -1")));
+        inventory.setItem(23, GuiItems.button(Material.PAPER, "&eMarktpreis",
+                List.of("&7Vorschlag: " + CurrencyFormatter.shortAmount(suggestedReward),
+                        "&7Basierend auf vorhandenen Richtwerten")));
+        inventory.setItem(24, GuiItems.button(Material.CHEST, "&eMaterialien: " + state.getItems().size() + "/5",
+                List.of("&7Belohnung anpassbar", "&7Budget wird sofort reserviert")));
+
+        inventory.setItem(27, stepButton("-10000"));
+        inventory.setItem(28, stepButton("-1000"));
+        inventory.setItem(29, stepButton("-100"));
+        inventory.setItem(30, stepButton("-10"));
+        inventory.setItem(31, GuiItems.button(Material.HOPPER, "&6Mengensteuerung",
+                List.of("&7Links +1 | Rechts -1", "&7Grosse Schritte links und rechts")));
+        inventory.setItem(32, stepButton("+10"));
+        inventory.setItem(33, stepButton("+100"));
+        inventory.setItem(34, stepButton("+1000"));
+        inventory.setItem(35, stepButton("+10000"));
+
+        inventory.setItem(45, GuiItems.button(Material.ARROW, "&eZurueck", List.of("&7Zur Jobliste")));
+        inventory.setItem(46, stepButton("-1000 CT"));
+        inventory.setItem(47, stepButton("-100 CT"));
+        inventory.setItem(48, stepButton("-10 CT"));
+        inventory.setItem(49, GuiItems.button(Material.SUNFLOWER, "&6Budget: " + CurrencyFormatter.shortAmount(state.getReward()),
+                List.of("&7Links +1 | Rechts -1", "&7Shift-Klick: Marktpreis uebernehmen",
+                        "&7Maximal verfuegbar: " + CurrencyFormatter.shortAmount(economyService.getBalance(player.getUniqueId())))));
+        inventory.setItem(50, stepButton("+10 CT"));
+        inventory.setItem(51, stepButton("+100 CT"));
+        inventory.setItem(52, stepButton("+1000 CT"));
+        inventory.setItem(53, GuiItems.button(Material.EMERALD_BLOCK, "&aJob erstellen",
+                List.of("&7Sichtbar fuer alle Spieler", "&7Belohnung: " + CurrencyFormatter.shortAmount(state.getReward()),
+                        "&7Budget wird sofort abgezogen")));
+        player.openInventory(inventory);
+    }
+
+    private ItemStack createJobDisplay(Player player, PlayerJob job, long now) {
+        List<String> lore = new ArrayList<>();
+        for (JobDefinition.JobRequirement requirement : requirementsFor(job)) {
+            lore.add("\u00A77" + displayName(requirement.material()) + ": \u00A7f"
+                    + progressFor(player, job, requirement.material()) + "/" + requirement.amount());
+        }
+        lore.add("\u00A77Belohnung: \u00A76" + CurrencyFormatter.shortAmount(rewardFor(job)));
+        lore.add("\u00A77Restzeit: \u00A7f" + formatDuration(job.getExpiresAt() - now));
+        if (job.isCustom()) {
+            lore.add("\u00A77Ersteller: \u00A7f" + job.getCreatorName());
+            lore.add("\u00A7aLinksklick: aus Inventar abgeben");
+            lore.add("\u00A7eRechtsklick: anpinnen/loesen");
+        } else {
+            lore.add("\u00A7aLinksklick: aus Inventar/Kiste abgeben");
+            lore.add("\u00A7eRechtsklick: anpinnen/loesen");
+            lore.add("\u00A7bShift-Klick: Job-Kiste oeffnen");
+        }
+        if (job.getInstanceId().equals(getProfile(player.getUniqueId()).getPinnedJobInstanceId())) {
+            lore.add("\u00A76Aktuell angepinnt");
+        }
+        return GuiItems.button(iconFor(job), "&a" + nameFor(job), lore);
+    }
+
+    private boolean handleDraftItemPlacement(InventoryClickEvent event, JobCreateState state) {
+        int rawSlot = event.getRawSlot();
+        int targetIndex = indexOfCreateSlot(rawSlot);
+        if (targetIndex >= 0) {
+            ItemStack cursor = event.getCursor();
+            if (cursor != null && !cursor.getType().isAir()) {
+                int existing = state.findByMaterial(cursor.getType());
+                if (existing >= 0) {
+                    state.setSelectedIndex(existing);
+                    return true;
+                }
+                if (targetIndex > state.getItems().size()) {
+                    targetIndex = state.getItems().size();
+                }
+                if (state.getItems().size() >= JOB_CREATE_ITEM_SLOTS.length && targetIndex >= state.getItems().size()) {
+                    return false;
+                }
+                JobCreateState.JobDraftItem next = new JobCreateState.JobDraftItem(cursor.getType(), Math.max(1, cursor.getAmount()));
+                if (targetIndex < state.getItems().size()) {
+                    state.getItems().set(targetIndex, next);
+                } else if (state.getItems().size() < JOB_CREATE_ITEM_SLOTS.length) {
+                    state.getItems().add(next);
+                }
+                state.setSelectedIndex(Math.min(targetIndex, state.getItems().size() - 1));
+                return true;
+            }
+            return false;
+        }
+
+        if (rawSlot >= event.getView().getTopInventory().getSize()) {
+            ItemStack clicked = event.getCurrentItem();
+            if (clicked == null || clicked.getType().isAir()) {
+                return false;
+            }
+            int existing = state.findByMaterial(clicked.getType());
+            if (existing >= 0) {
+                state.setSelectedIndex(existing);
+                return true;
+            }
+            if (state.getItems().size() >= JOB_CREATE_ITEM_SLOTS.length) {
+                return false;
+            }
+            state.getItems().add(new JobCreateState.JobDraftItem(clicked.getType(), clicked.getAmount()));
+            state.setSelectedIndex(state.getItems().size() - 1);
+            return true;
+        }
+        return false;
+    }
+
+    private void adjustSelectedAmount(JobCreateState state, int delta) {
+        JobCreateState.JobDraftItem selected = state.ensureSelected();
+        if (selected == null) {
+            return;
+        }
+        int next = Math.max(1, selected.amount() + delta);
+        state.getItems().set(state.getSelectedIndex(), selected.withAmount(next));
+    }
+
+    private void adjustReward(JobCreateState state, int delta, Player player) {
+        double next = Math.max(1, state.getReward() + delta);
+        double balance = economyService.getBalance(player.getUniqueId());
+        state.setReward(Math.min(next, Math.max(1, (int) balance)));
+    }
+
+    private void applySuggestedReward(Player player, JobCreateState state) {
+        state.setReward(suggestedReward(player, state));
+    }
+
+    private double suggestedReward(Player player, JobCreateState state) {
+        if (state == null || state.getItems().isEmpty()) {
+            return defaultRewardFor(player, null);
+        }
+        double total = 0;
+        boolean foundReference = false;
+        for (JobCreateState.JobDraftItem item : state.getItems()) {
+            var reference = priceGuideManager.getReferencePrice(new ItemStack(item.material()));
+            if (reference.isPresent()) {
+                total += reference.getAsDouble() * item.amount();
+                foundReference = true;
+            }
+        }
+        if (!foundReference) {
+            return defaultRewardFor(player, state);
+        }
+        return clampReward(player, Math.max(1, Math.round(total)));
+    }
+
+    private double defaultRewardFor(Player player, JobCreateState state) {
+        double balance = economyService.getBalance(player.getUniqueId());
+        if (state != null && !state.getItems().isEmpty()) {
+            return clampReward(player, 1);
+        }
+        return clampReward(player, Math.min(100, Math.max(1, Math.floor(balance))));
+    }
+
+    private double clampReward(Player player, double reward) {
+        double balance = economyService.getBalance(player.getUniqueId());
+        if (balance <= 0) {
+            return 1;
+        }
+        return Math.max(1, Math.min(reward, Math.floor(balance)));
+    }
+
+    private void createPublicJob(Player player, JobCreateState state) {
+        if (state.getItems().isEmpty()) {
+            player.sendMessage("Lege mindestens ein Material fuer den Job fest.");
+            return;
+        }
+        double reward = Math.max(1, state.getReward());
+        if (economyService.getBalance(player.getUniqueId()) < reward || !economyService.withdraw(player.getUniqueId(), reward)) {
+            player.sendMessage("Du hast nicht genug CraftTaler fuer dieses Budget.");
+            renderCreateMenu(player, state);
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        PlayerJob job = new PlayerJob(nextCustomInstanceId(), null, now, now + Duration.ofDays(1).toMillis(),
+                player.getUniqueId(), player.getName(), "Spielerauftrag von " + player.getName(), reward);
+        for (JobCreateState.JobDraftItem item : state.getItems()) {
+            job.getCustomRequirements().add(new JobDefinition.JobRequirement(item.material(), item.amount()));
+        }
+        publicJobs.add(job);
+        save();
+
+        createStates.put(player.getUniqueId(),
+                new JobCreateState(defaultRewardFor(player, null)));
+        player.sendMessage("Spieler-Job erstellt. " + CurrencyFormatter.shortAmount(reward) + " wurden reserviert.");
+        openJobs(player);
+    }
+
+    private void deliverPublicJob(Player player, PlayerJob job) {
+        int deliveredAny = deliverMaterials(player, job, false);
+        if (deliveredAny == 0) {
+            player.sendMessage("Keine passenden Items fuer diesen Job gefunden.");
+            return;
+        }
+        if (isCompleted(job)) {
+            economyService.deposit(player.getUniqueId(), job.getRewardOverride());
+            publicJobs.remove(job);
+            clearPinned(job.getInstanceId());
+            player.sendMessage("Spieler-Job abgeschlossen. " + CurrencyFormatter.shortAmount(job.getRewardOverride()) + " erhalten.");
+            Player creator = Bukkit.getPlayer(job.getCreatorId());
+            if (creator != null && !creator.getUniqueId().equals(player.getUniqueId())) {
+                creator.sendMessage("Dein Spieler-Job " + nameFor(job) + " wurde abgeschlossen.");
+            }
+        } else {
+            player.sendMessage("Fortschritt aktualisiert.");
+        }
+        save();
+    }
+
+    private void deliverFromInventoryAndStorage(Player player, PlayerJobProfile profile, PlayerJob job, boolean allowStorage) {
+        int deliveredAny = deliverMaterials(player, job, allowStorage);
+        if (deliveredAny == 0) {
+            player.sendMessage("Keine passenden Items fuer diesen Job gefunden.");
+            return;
+        }
+        if (isCompleted(job)) {
+            economyService.deposit(player.getUniqueId(), rewardFor(job));
+            profile.getActiveJobs().remove(job);
+            clearPinned(job.getInstanceId());
+            JobDefinition definition = getDefinition(job.getDefinitionId());
+            profile.getCooldowns().put(definition.id(), System.currentTimeMillis() + Duration.ofDays(1).toMillis());
+            ensureJobs(player.getUniqueId());
+            player.sendMessage("Job abgeschlossen. " + CurrencyFormatter.shortAmount(rewardFor(job)) + " erhalten.");
+        } else {
+            player.sendMessage("Fortschritt aktualisiert.");
+        }
+        save();
+    }
+
+    private int deliverMaterials(Player player, PlayerJob job, boolean allowStorage) {
+        int deliveredAny = 0;
+        for (JobDefinition.JobRequirement requirement : requirementsFor(job)) {
             int delivered = job.getDelivered().getOrDefault(requirement.material().name(), 0);
             int missing = requirement.amount() - delivered;
             if (missing <= 0) {
                 continue;
             }
-            int fromStorage = removeStored(job, requirement.material(), missing);
-            if (fromStorage > 0) {
-                job.getDelivered().put(requirement.material().name(), delivered + fromStorage);
-                deliveredAny += fromStorage;
-                delivered += fromStorage;
-                missing -= fromStorage;
+            if (allowStorage) {
+                int fromStorage = removeStored(job, requirement.material(), missing);
+                if (fromStorage > 0) {
+                    delivered += fromStorage;
+                    deliveredAny += fromStorage;
+                    job.getDelivered().put(requirement.material().name(), delivered);
+                    missing -= fromStorage;
+                }
             }
             if (missing > 0) {
                 int removed = removeMaterial(player.getInventory().getContents(), requirement.material(), missing);
@@ -330,24 +713,7 @@ public class JobManager {
                 }
             }
         }
-
-        if (deliveredAny == 0) {
-            player.sendMessage("Keine passenden Items f\u00fcr diesen Job gefunden.");
-            return;
-        }
-        if (isCompleted(job, definition)) {
-            economyService.deposit(player.getUniqueId(), definition.reward());
-            profile.getActiveJobs().remove(job);
-            if (job.getInstanceId().equals(profile.getPinnedJobInstanceId())) {
-                profile.setPinnedJobInstanceId(null);
-            }
-            profile.getCooldowns().put(definition.id(), System.currentTimeMillis() + Duration.ofDays(1).toMillis());
-            ensureJobs(player.getUniqueId());
-            player.sendMessage("Job abgeschlossen. " + (int) definition.reward() + " Coins erhalten.");
-        } else {
-            player.sendMessage("Fortschritt aktualisiert.");
-        }
-        save();
+        return deliveredAny;
     }
 
     private void takeFromStorage(Player player, InventoryClickEvent event, PlayerJob job) {
@@ -370,7 +736,7 @@ public class JobManager {
         }
         int allowed = remainingAllowed(job, clicked.getType());
         if (allowed <= 0) {
-            player.sendMessage("Dieses Item wird f\u00fcr den Job nicht mehr ben\u00f6tigt.");
+            player.sendMessage("Dieses Item wird fuer den Job nicht mehr benoetigt.");
             return;
         }
         int amount = Math.min(allowed, clicked.getAmount());
@@ -444,8 +810,7 @@ public class JobManager {
     }
 
     private int remainingAllowed(PlayerJob job, Material material) {
-        JobDefinition definition = getDefinition(job.getDefinitionId());
-        JobDefinition.JobRequirement req = definition.requirements().stream()
+        JobDefinition.JobRequirement req = requirementsFor(job).stream()
                 .filter(entry -> entry.material() == material)
                 .findFirst()
                 .orElse(null);
@@ -453,7 +818,7 @@ public class JobManager {
             return 0;
         }
         int delivered = job.getDelivered().getOrDefault(material.name(), 0);
-        int stored = countStored(job, material);
+        int stored = job.isCustom() ? 0 : countStored(job, material);
         return Math.max(0, req.amount() - delivered - stored);
     }
 
@@ -510,14 +875,14 @@ public class JobManager {
         return removed;
     }
 
-    private boolean isCompleted(PlayerJob job, JobDefinition definition) {
-        return definition.requirements().stream()
+    private boolean isCompleted(PlayerJob job) {
+        return requirementsFor(job).stream()
                 .allMatch(req -> job.getDelivered().getOrDefault(req.material().name(), 0) >= req.amount());
     }
 
     private void returnStoredItems(UUID playerId, PlayerJob job) {
         for (ItemStack item : job.getStoredItems()) {
-            claimStorage.addClaim(playerId, item, "Job-Kiste R\u00fcckgabe", 0, "Job " + job.getInstanceId() + " ist abgelaufen");
+            claimStorage.addClaim(playerId, item, "Job-Kiste Rueckgabe", 0, "Job " + job.getInstanceId() + " ist abgelaufen");
         }
         job.getStoredItems().clear();
     }
@@ -527,6 +892,17 @@ public class JobManager {
     }
 
     private PlayerJob findJob(UUID playerId, String instanceId) {
+        PlayerJob personal = findPersonalJob(playerId, instanceId);
+        if (personal != null) {
+            return personal;
+        }
+        return publicJobs.stream()
+                .filter(candidate -> candidate.getInstanceId().equalsIgnoreCase(instanceId))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private PlayerJob findPersonalJob(UUID playerId, String instanceId) {
         return getProfile(playerId).getActiveJobs().stream()
                 .filter(candidate -> candidate.getInstanceId().equalsIgnoreCase(instanceId))
                 .findFirst()
@@ -538,7 +914,7 @@ public class JobManager {
         long now = System.currentTimeMillis();
         while (profile.getActiveJobs().size() < MIN_ACTIVE_JOBS) {
             List<JobDefinition> candidates = definitions.stream()
-                    .filter(definition -> profile.getActiveJobs().stream().noneMatch(job -> job.getDefinitionId().equals(definition.id())))
+                    .filter(definition -> profile.getActiveJobs().stream().noneMatch(job -> definition.id().equals(job.getDefinitionId())))
                     .filter(definition -> profile.getCooldowns().getOrDefault(definition.id(), 0L) <= now)
                     .toList();
             if (candidates.isEmpty()) {
@@ -556,8 +932,8 @@ public class JobManager {
         return definitions.stream().filter(def -> def.id().equals(definitionId)).findFirst().orElseThrow();
     }
 
-    private Material iconFor(JobDefinition definition) {
-        return definition.requirements().get(0).material();
+    private Material iconFor(PlayerJob job) {
+        return requirementsFor(job).get(0).material();
     }
 
     private List<JobDefinition> buildDefinitions() {
@@ -578,11 +954,120 @@ public class JobManager {
                 new JobDefinition.JobRequirement(Material.WHITE_WOOL, 96),
                 new JobDefinition.JobRequirement(Material.BEEF, 64)
         ), 24, 300, 1440));
-        list.add(new JobDefinition("sweet_stock", "S\u00fc\u00dfer Vorrat", List.of(
+        list.add(new JobDefinition("sweet_stock", "Suesser Vorrat", List.of(
                 new JobDefinition.JobRequirement(Material.HONEY_BOTTLE, 24),
                 new JobDefinition.JobRequirement(Material.SUGAR_CANE, 192)
         ), 20, 240, 1440));
         return list;
+    }
+
+    private List<PlayerJob> visibleJobs(UUID playerId) {
+        List<PlayerJob> jobs = new ArrayList<>(getProfile(playerId).getActiveJobs());
+        jobs.addAll(publicJobs);
+        return jobs;
+    }
+
+    private void clearPinned(String instanceId) {
+        for (PlayerJobProfile profile : profiles.values()) {
+            if (instanceId.equals(profile.getPinnedJobInstanceId())) {
+                profile.setPinnedJobInstanceId(null);
+            }
+        }
+    }
+
+    private void saveJob(YamlConfiguration yaml, String path, PlayerJob job) {
+        yaml.set(path + ".instanceId", job.getInstanceId());
+        yaml.set(path + ".definitionId", job.getDefinitionId());
+        yaml.set(path + ".createdAt", job.getCreatedAt());
+        yaml.set(path + ".expiresAt", job.getExpiresAt());
+        yaml.set(path + ".creatorId", job.getCreatorId() == null ? null : job.getCreatorId().toString());
+        yaml.set(path + ".creatorName", job.getCreatorName());
+        yaml.set(path + ".customName", job.getCustomName());
+        yaml.set(path + ".rewardOverride", job.getRewardOverride());
+        yaml.set(path + ".delivered", job.getDelivered());
+        yaml.set(path + ".storedItems", job.getStoredItems());
+        for (int i = 0; i < job.getCustomRequirements().size(); i++) {
+            JobDefinition.JobRequirement requirement = job.getCustomRequirements().get(i);
+            yaml.set(path + ".customRequirements." + i + ".material", requirement.material().name());
+            yaml.set(path + ".customRequirements." + i + ".amount", requirement.amount());
+        }
+    }
+
+    private PlayerJob loadJob(YamlConfiguration yaml, String base) {
+        String instanceId = yaml.getString(base + ".instanceId");
+        if (instanceId == null) {
+            return null;
+        }
+        String creatorIdString = yaml.getString(base + ".creatorId");
+        PlayerJob job = new PlayerJob(
+                instanceId,
+                yaml.getString(base + ".definitionId"),
+                yaml.getLong(base + ".createdAt"),
+                yaml.getLong(base + ".expiresAt"),
+                creatorIdString == null ? null : UUID.fromString(creatorIdString),
+                yaml.getString(base + ".creatorName"),
+                yaml.getString(base + ".customName"),
+                yaml.getDouble(base + ".rewardOverride")
+        );
+        ConfigurationSection delivered = yaml.getConfigurationSection(base + ".delivered");
+        if (delivered != null) {
+            for (String material : delivered.getKeys(false)) {
+                job.getDelivered().put(material, delivered.getInt(material));
+            }
+        }
+        List<?> stored = yaml.getList(base + ".storedItems");
+        if (stored != null) {
+            for (Object entry : stored) {
+                if (entry instanceof ItemStack item) {
+                    job.getStoredItems().add(item);
+                }
+            }
+        }
+        ConfigurationSection customRequirements = yaml.getConfigurationSection(base + ".customRequirements");
+        if (customRequirements != null) {
+            for (String key : customRequirements.getKeys(false)) {
+                String materialName = yaml.getString(base + ".customRequirements." + key + ".material");
+                Material material = materialName == null ? null : Material.matchMaterial(materialName);
+                if (material == null) {
+                    continue;
+                }
+                job.getCustomRequirements().add(new JobDefinition.JobRequirement(
+                        material,
+                        yaml.getInt(base + ".customRequirements." + key + ".amount", 1)
+                ));
+            }
+        }
+        return job;
+    }
+
+    private String nextCustomInstanceId() {
+        String instanceId;
+        do {
+            instanceId = "JOB" + (1000 + ThreadLocalRandom.current().nextInt(9000));
+        } while (containsPublicJobInstance(instanceId));
+        return instanceId;
+    }
+
+    private boolean containsPublicJobInstance(String instanceId) {
+        for (PlayerJob job : publicJobs) {
+            if (job.getInstanceId().equals(instanceId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private int indexOfCreateSlot(int rawSlot) {
+        for (int i = 0; i < JOB_CREATE_ITEM_SLOTS.length; i++) {
+            if (JOB_CREATE_ITEM_SLOTS[i] == rawSlot) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private ItemStack stepButton(String text) {
+        return GuiItems.button(Material.GOLD_NUGGET, "&6" + text, List.of("&7Klick zum Anpassen"));
     }
 
     private String formatDuration(long millis) {
@@ -604,5 +1089,3 @@ public class JobManager {
         return copy;
     }
 }
-
-

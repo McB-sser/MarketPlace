@@ -6,6 +6,7 @@ import de.mcbesser.marketplace.gui.GuiItems;
 import de.mcbesser.marketplace.gui.MenuHolder;
 import de.mcbesser.marketplace.gui.MenuType;
 import de.mcbesser.marketplace.storage.ClaimStorage;
+import de.mcbesser.marketplace.util.CurrencyFormatter;
 import de.mcbesser.marketplace.util.GermanItemNames;
 import java.io.File;
 import java.io.IOException;
@@ -64,7 +65,7 @@ public class AuctionManager {
                 ? GuiItems.button(Material.HOPPER, "&eItem hier einlegen", List.of("&7Klicke mit Item aus deinem Inventar", "&7auf diesen Slot"))
                 : pending.clone());
         inventory.setItem(15, GuiItems.button(Material.EMERALD_BLOCK, "&aAuktion starten",
-                List.of("&7Startpreis: " + (int) startPrice + " Coins", "&7Dauer: " + seconds + " Sekunden", "&7Gebote laufen im Chat")));
+                List.of("&7Startpreis: " + CurrencyFormatter.shortAmount(startPrice), "&7Dauer: " + seconds + " Sekunden", "&7Gebote laufen im Chat")));
         inventory.setItem(22, activeAuctionDisplay());
         inventory.setItem(26, GuiItems.button(Material.BARREL, "&eAbholfach", List.of("&7Auktionsrueckgaben und Gewinne")));
         player.openInventory(inventory);
@@ -121,17 +122,17 @@ public class AuctionManager {
         }
         double bid = Double.parseDouble(message);
         if (bid <= activeAuction.getCurrentPrice()) {
-            player.sendMessage("Dein Gebot muss \u00fcber " + (int) activeAuction.getCurrentPrice() + " Coins liegen.");
+            player.sendMessage("Dein Gebot muss ueber " + CurrencyFormatter.shortAmount(activeAuction.getCurrentPrice()) + " liegen.");
             return true;
         }
         if (economyService.getBalance(player.getUniqueId()) < bid) {
-            player.sendMessage("Nicht genug Coins f\u00fcr dieses Gebot.");
+            player.sendMessage("Nicht genug CraftTaler fuer dieses Gebot.");
             return true;
         }
         activeAuction.setCurrentPrice(bid);
         activeAuction.setHighestBidderId(player.getUniqueId());
         activeAuction.setHighestBidderName(player.getName());
-        Bukkit.broadcastMessage("[Auktion] " + player.getName() + " bietet " + (int) bid + " Coins auf "
+        Bukkit.broadcastMessage("[Auktion] " + player.getName() + " bietet " + CurrencyFormatter.shortAmount(bid) + " auf "
                 + readableName(activeAuction.getItem()) + ".");
         save();
         return true;
@@ -150,7 +151,7 @@ public class AuctionManager {
         long seconds = Math.max(0, (activeAuction.getExpiresAt() - System.currentTimeMillis()) / 1000L);
         return List.of(
                 "\u00A7f" + shorten(readableName(activeAuction.getItem()), 22),
-                "\u00A76" + (int) activeAuction.getCurrentPrice() + " Coins",
+                "\u00A76" + CurrencyFormatter.shortAmount(activeAuction.getCurrentPrice()),
                 "\u00A77" + seconds + "s"
         );
     }
@@ -254,7 +255,7 @@ public class AuctionManager {
         activeAuction = new AuctionState(player.getUniqueId(), player.getName(), pending.clone(),
                 System.currentTimeMillis() + Duration.ofSeconds(seconds).toMillis(), startPrice);
         Bukkit.broadcastMessage("[Auktion] " + player.getName() + " versteigert " + readableName(pending)
-                + " ab " + (int) startPrice + " Coins. Gebote einfach als Zahl in den Chat schreiben.");
+                + " ab " + CurrencyFormatter.shortAmount(startPrice) + ". Gebote einfach als Zahl in den Chat schreiben.");
         save();
     }
 
@@ -270,7 +271,7 @@ public class AuctionManager {
         }
         if (!economyService.withdraw(auction.getHighestBidderId(), auction.getCurrentPrice())) {
             claimStorage.addClaim(auction.getSellerId(), auction.getItem(), "Auktion fehlgeschlagen",
-                    auction.getCurrentPrice(), "H\u00f6chstbietender hatte nicht genug Coins");
+                    auction.getCurrentPrice(), "Hoechstbietender hatte nicht genug CraftTaler");
             Bukkit.broadcastMessage("[Auktion] Gebot konnte nicht eingezogen werden. Item geht zurueck an "
                     + auction.getSellerName() + ".");
             save();
@@ -289,7 +290,7 @@ public class AuctionManager {
             }
         }
         Bukkit.broadcastMessage("[Auktion] " + auction.getHighestBidderName() + " gewinnt f\u00fcr "
-                + (int) auction.getCurrentPrice() + " Coins.");
+                + CurrencyFormatter.shortAmount(auction.getCurrentPrice()) + ".");
         save();
     }
 
@@ -302,7 +303,7 @@ public class AuctionManager {
         List<String> lore = meta != null && meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
         lore.add(" ");
         lore.add("\u00A77Verk\u00e4ufer: \u00A7f" + activeAuction.getSellerName());
-        lore.add("\u00A77Aktuell: \u00A76" + (int) activeAuction.getCurrentPrice() + " Coins");
+        lore.add("\u00A77Aktuell: \u00A76" + CurrencyFormatter.shortAmount(activeAuction.getCurrentPrice()));
         lore.add("\u00A77H\u00f6chstbietender: \u00A7f" + (activeAuction.getHighestBidderName() == null ? "-" : activeAuction.getHighestBidderName()));
         lore.add("\u00A77Im Chat als Zahl bieten");
         if (meta != null) {

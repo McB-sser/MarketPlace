@@ -9,6 +9,7 @@ import de.mcbesser.marketplace.market.MarketListing;
 import de.mcbesser.marketplace.market.MarketManager;
 import de.mcbesser.marketplace.pricing.PriceGuideManager;
 import de.mcbesser.marketplace.storage.ClaimStorage;
+import de.mcbesser.marketplace.util.CurrencyFormatter;
 import de.mcbesser.marketplace.util.GermanItemNames;
 import java.io.File;
 import java.io.IOException;
@@ -54,11 +55,11 @@ public class LottoManager {
         Inventory inventory = Bukkit.createInventory(new MenuHolder(MenuType.LOTTO_MAIN), 27, "Lotto");
         inventory.setItem(13, decoratePrize());
         inventory.setItem(10, GuiItems.button(Material.PAPER, "&a1 Ticket",
-                List.of("&7Preis: " + (int) currentRound.getTicketPrice() + " Coins")));
+                List.of("&7Preis: " + CurrencyFormatter.shortAmount(currentRound.getTicketPrice()))));
         inventory.setItem(11, GuiItems.button(Material.MAP, "&a5 Tickets",
-                List.of("&7Preis: " + (int) (currentRound.getTicketPrice() * 5) + " Coins")));
+                List.of("&7Preis: " + CurrencyFormatter.shortAmount(currentRound.getTicketPrice() * 5))));
         inventory.setItem(15, GuiItems.button(Material.BOOK, "&a10 Tickets",
-                List.of("&7Preis: " + (int) (currentRound.getTicketPrice() * 10) + " Coins")));
+                List.of("&7Preis: " + CurrencyFormatter.shortAmount(currentRound.getTicketPrice() * 10))));
         inventory.setItem(22, GuiItems.button(Material.CLOCK, "&eZiehung in " + remainingText(),
                 List.of("&7Tickets: " + currentRound.getTotalTickets(),
                         "&7Teilnehmer: " + currentRound.getParticipantCount(),
@@ -144,13 +145,13 @@ public class LottoManager {
             currentRound = new LottoRound(listing.getId(), listing.getSellerId(), listing.getItem().clone(),
                     listing.getPrice(), ticketPrice, nextDrawTimestamp());
             Bukkit.broadcastMessage("[Lotto] Tageslotto gestartet: " + readableName(listing.getItem())
-                    + " | Ticket: " + (int) ticketPrice + " Coins.");
+                    + " | Ticket: " + CurrencyFormatter.shortAmount(ticketPrice) + ".");
         } else {
             double basePot = plugin.getConfig().getDouble("lotto.base-pot", 250);
             double ticketPrice = plugin.getConfig().getDouble("lotto.ticket-price", 25);
             currentRound = new LottoRound(-1, null, null, basePot, ticketPrice, nextDrawTimestamp());
-            Bukkit.broadcastMessage("[Lotto] Tageslotto gestartet mit Basis-Pot von " + (int) basePot
-                    + " Coins. Keine g\u00fcltigen Item-Gewinne verfuegbar.");
+            Bukkit.broadcastMessage("[Lotto] Tageslotto gestartet mit Basis-Pot von " + CurrencyFormatter.shortAmount(basePot)
+                    + ". Keine gueltigen Item-Gewinne verfuegbar.");
         }
         save();
     }
@@ -182,7 +183,7 @@ public class LottoManager {
     private void buyTickets(Player player, int amount) {
         double totalPrice = currentRound.getTicketPrice() * amount;
         if (!economyService.withdraw(player.getUniqueId(), totalPrice)) {
-            player.sendMessage("Nicht genug Coins f\u00fcr Lotto-Tickets.");
+            player.sendMessage("Nicht genug CraftTaler fuer Lotto-Tickets.");
             return;
         }
         currentRound.getTickets().merge(player.getUniqueId(), amount, Integer::sum);
@@ -215,12 +216,12 @@ public class LottoManager {
             }
             String winnerName = winner == null ? plugin.getServer().getOfflinePlayer(winnerId).getName() : winner.getName();
             Bukkit.broadcastMessage("[Lotto] " + winnerName + " gewinnt " + readableName(round.getItem())
-                    + ". Verk\u00e4ufer erhaelt " + ticketPot + " Coins.");
+                    + ". Verkaeufer erhaelt " + CurrencyFormatter.shortAmount(ticketPot) + ".");
         } else {
             int payout = (int) (round.getItemPrice() + ticketPot);
             economyService.deposit(winnerId, payout);
             String winnerName = plugin.getServer().getOfflinePlayer(winnerId).getName();
-            Bukkit.broadcastMessage("[Lotto] " + winnerName + " gewinnt den Basis-Pot von " + payout + " Coins.");
+            Bukkit.broadcastMessage("[Lotto] " + winnerName + " gewinnt den Basis-Pot von " + CurrencyFormatter.shortAmount(payout) + ".");
         }
         save();
     }
@@ -246,8 +247,8 @@ public class LottoManager {
     private ItemStack decoratePrize() {
         if (!currentRound.hasItemPrize()) {
             return GuiItems.button(Material.SUNFLOWER, "&6Basis-Pot",
-                    List.of("&7Gewinn: " + (int) currentRound.getItemPrice() + " Coins",
-                            "&7Ticketpreis: " + (int) currentRound.getTicketPrice() + " Coins",
+                    List.of("&7Gewinn: " + CurrencyFormatter.shortAmount(currentRound.getItemPrice()),
+                            "&7Ticketpreis: " + CurrencyFormatter.shortAmount(currentRound.getTicketPrice()),
                             "&7Ziehung 1x t\u00e4glich"));
         }
         ItemStack display = currentRound.getItem().clone();
@@ -255,8 +256,8 @@ public class LottoManager {
         List<String> lore = meta != null && meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
         lore.add(" ");
         lore.add("\u00A77Richtwert: \u00A76" + priceGuideManager.allowedRangeText(currentRound.getItem()));
-        lore.add("\u00A77Shoppreis: \u00A76" + (int) currentRound.getItemPrice() + " Coins");
-        lore.add("\u00A77Ticketpreis: \u00A7e" + (int) currentRound.getTicketPrice() + " Coins");
+        lore.add("\u00A77Shoppreis: \u00A76" + CurrencyFormatter.shortAmount(currentRound.getItemPrice()));
+        lore.add("\u00A77Ticketpreis: \u00A7e" + CurrencyFormatter.shortAmount(currentRound.getTicketPrice()));
         lore.add("\u00A77Ziehung: \u00A7f1x pro Tag");
         lore.add("\u00A77Restzeit: \u00A7f" + remainingText());
         if (meta != null) {

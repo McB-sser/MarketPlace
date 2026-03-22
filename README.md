@@ -155,7 +155,7 @@ So startet man eine Auktion:
 
 Wichtige Details:
 
-- Standard-Startpreis: `100 Coins`
+- Standard-Startpreis: `100 CT`
 - Standard-Dauer: `60 Sekunden`
 - Dauer erhoeht sich pro Klick um `30 Sekunden`
 - Ab `180 Sekunden` springt die Auswahl wieder auf `30 Sekunden`
@@ -165,32 +165,32 @@ Wie Gebote funktionieren:
 - Spieler schreiben einfach eine Zahl in den Chat.
 - Das Gebot muss hoeher sein als das aktuelle Gebot.
 - Der Verkaeufer darf nicht auf seine eigene Auktion bieten.
-- Das System prueft, ob genug Coins fuer das Gebot vorhanden sind.
+- Das System prueft, ob genug CraftTaler fuer das Gebot vorhanden sind.
 
 Was beim Ende passiert:
 
 - Ohne Gebot geht das Item ins Abholfach des Verkaeufers.
-- Mit gueltigem Hoechstgebot werden Coins vom Gewinner eingezogen.
-- Der Verkaeufer erhaelt die Coins.
+- Mit gueltigem Hoechstgebot werden CraftTaler vom Gewinner eingezogen.
+- Der Verkaeufer erhaelt die CraftTaler.
 - Der Gewinner erhaelt das Item oder, falls sein Inventar voll ist, einen Eintrag im Abholfach.
 
 ### 3. Lotto
 
-Das Lotto ist eine taegliche Verlosung. Je nach verfuegbaren Marktangeboten wird entweder ein echtes Item verlost oder ein Basispot in Coins ausgespielt.
+Das Lotto ist eine taegliche Verlosung. Je nach verfuegbaren Marktangeboten wird entweder ein echtes Item verlost oder ein Basispot in CraftTalern ausgespielt.
 
 Was das Lotto kann:
 
 - taegliche Ziehung zu einer konfigurierbaren Uhrzeit
 - Ticketkauf in mehreren Mengen
 - automatische Auswahl eines Gewinners
-- Item-Lotto oder Coin-Basispot
+- Item-Lotto oder CraftTaler-Basispot
 - Rueckerstattung aller Tickets, wenn zu wenige Teilnehmer vorhanden sind
 
 Wie das Lotto funktioniert:
 
 - Das System sucht passende Marktangebote als moeglichen Tagesgewinn.
 - Bevorzugt werden guenstige Angebote, fuer deren Item bereits Vergleichsdaten existieren oder die mehrfach auf dem Markt vorhanden sind.
-- Wenn kein geeignetes Item verfuegbar ist, wird stattdessen ein Coin-Pot verwendet.
+- Wenn kein geeignetes Item verfuegbar ist, wird stattdessen ein CraftTaler-Pot verwendet.
 
 So benutzt man das Lotto:
 
@@ -201,15 +201,15 @@ So benutzt man das Lotto:
 
 Wichtige Details:
 
-- Standard-Ticketpreis: `25 Coins`
-- Standard-Basispot: `250 Coins`
+- Standard-Ticketpreis: `25 CT`
+- Standard-Basispot: `250 CT`
 - Standard-Ziehung: `18:00`
 - Mindestens `2 Teilnehmer` sind noetig
 
 Wenn ein Item verlost wird:
 
 - Der Gewinner erhaelt das Item.
-- Der urspruengliche Verkaeufer erhaelt den Ticketumsatz in Coins.
+- Der urspruengliche Verkaeufer erhaelt den Ticketumsatz in CraftTalern.
 
 Wenn kein Item verlost wird:
 
@@ -223,7 +223,7 @@ Was der Direkthandel kann:
 
 - Handelsanfragen zwischen Online-Spielern
 - beidseitiges Item-Angebot
-- zusaetzliche Coin-Angebote
+- zusaetzliche CraftTaler-Angebote
 - beidseitige Bestaetigung
 - automatischer Abbruch nach Inaktivitaet
 - sichere Rueckgabe von Items bei Abbruch
@@ -241,7 +241,7 @@ Funktionen im Handelsfenster:
 
 - `Hand-Item hinzufuegen`: nimmt das komplette Stack aus der Hand
 - `Letztes eigenes Item entfernen`
-- Coin-Angebot anpassen mit `-10`, `+10`, `+100`
+- CraftTaler-Angebot anpassen mit `-10`, `+10`, `+100`
 - Bestaetigen
 - Abbrechen
 
@@ -249,7 +249,7 @@ Wichtige Sicherheitslogik:
 
 - Aendert eine Seite ihr Angebot, werden beide Bestaetigungen zurueckgesetzt.
 - Der Handel wird nur abgeschlossen, wenn beide Seiten bestaetigen.
-- Vor dem Abschluss wird geprueft, ob beide Spieler genug Coins haben.
+- Vor dem Abschluss wird geprueft, ob beide Spieler genug CraftTaler haben.
 - Items werden bei Platzmangel ins Abholfach verschoben.
 
 ### 5. Jobs

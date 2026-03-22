@@ -4,6 +4,7 @@ import de.mcbesser.marketplace.MarketplacePlugin;
 import de.mcbesser.marketplace.gui.GuiItems;
 import de.mcbesser.marketplace.gui.MenuHolder;
 import de.mcbesser.marketplace.gui.MenuType;
+import de.mcbesser.marketplace.util.CurrencyFormatter;
 import java.io.File;
 import java.io.IOException;
 import java.time.Instant;
@@ -161,7 +162,7 @@ public class ClaimStorage {
         List<String> lore = meta != null && meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
         lore.add(" ");
         lore.add("\u00A77Quelle: \u00A7f" + entry.getSource());
-        lore.add("\u00A77Letzter Preis: \u00A76" + (int) entry.getLastPrice() + " Coins");
+        lore.add("\u00A77Letzter Preis: \u00A76" + CurrencyFormatter.shortAmount(entry.getLastPrice()));
         if (!entry.getDetails().isBlank()) {
             lore.add("\u00A77Info: \u00A7f" + entry.getDetails());
         }

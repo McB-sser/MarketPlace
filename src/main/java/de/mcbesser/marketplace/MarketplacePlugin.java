@@ -39,7 +39,7 @@ public class MarketplacePlugin extends JavaPlugin {
             economyService = new EconomyService(this);
             claimStorage = new ClaimStorage(this);
             priceGuideManager = new PriceGuideManager(this);
-            jobManager = new JobManager(this, economyService, claimStorage);
+            jobManager = new JobManager(this, economyService, claimStorage, priceGuideManager);
             marketManager = new MarketManager(this, economyService, claimStorage, priceGuideManager);
             lottoManager = new LottoManager(this, economyService, claimStorage, marketManager, priceGuideManager);
             tradeManager = new TradeManager(this, economyService, claimStorage);

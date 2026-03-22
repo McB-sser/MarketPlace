@@ -1,6 +1,7 @@
 package de.mcbesser.marketplace.pricing;
 
 import de.mcbesser.marketplace.MarketplacePlugin;
+import de.mcbesser.marketplace.util.CurrencyFormatter;
 import de.mcbesser.marketplace.util.GermanItemNames;
 import java.io.File;
 import java.io.IOException;
@@ -49,7 +50,7 @@ public class PriceGuideManager {
         double center = reference.getAsDouble();
         double min = Math.max(1, Math.floor(center * 0.9D));
         double max = Math.ceil(center * 1.1D);
-        return (int) min + " - " + (int) max + " Coins";
+        return CurrencyFormatter.shortAmount(min) + " - " + CurrencyFormatter.shortAmount(max);
     }
 
     public void registerObservation(ItemStack item, double price) {

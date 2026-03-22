@@ -4,7 +4,6 @@ import de.mcbesser.marketplace.EconomyService;
 import de.mcbesser.marketplace.MarketplacePlugin;
 import de.mcbesser.marketplace.HandelsblattItem;
 import de.mcbesser.marketplace.auction.AuctionManager;
-import de.mcbesser.marketplace.jobs.JobDefinition;
 import de.mcbesser.marketplace.jobs.JobManager;
 import de.mcbesser.marketplace.jobs.PlayerJob;
 import java.util.ArrayList;
@@ -63,10 +62,9 @@ public class MarketplaceSidebarManager {
 
         PlayerJob pinned = jobManager.getPinnedJob(player.getUniqueId());
         if (pinned != null) {
-            JobDefinition definition = jobManager.getDefinitionFor(pinned);
             lines.add("\u00A70");
-            lines.add("\u00A7eJob: " + cut(definition.name(), 24));
-            for (JobDefinition.JobRequirement requirement : definition.requirements()) {
+            lines.add("\u00A7eJob: " + cut(jobManager.nameFor(pinned), 24));
+            for (var requirement : jobManager.requirementsFor(pinned)) {
                 String name = cut(jobManager.displayName(requirement.material()), 18);
                 int progress = Math.min(requirement.amount(), jobManager.progressFor(player, pinned, requirement.material()));
                 lines.add("\u00A7f" + name + " " + progress + "/" + requirement.amount());

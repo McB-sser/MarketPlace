@@ -59,7 +59,8 @@ public class InteractionListener implements Listener {
         event.setCancelled(true);
         switch (holder.getType()) {
             case HUB -> marketplaceMenu.handleClick(player, event.getRawSlot());
-            case JOBS -> jobManager.handleClick(player, event.getRawSlot(), event.getClick());
+            case JOBS -> jobManager.handleClick(player, event, holder.getPage());
+            case JOB_CREATE -> jobManager.handleCreateClick(player, event);
             case JOB_STORAGE -> jobManager.handleStorageClick(player, event, holder.getContext());
             case MARKET_MAIN -> marketManager.handleMainClick(player, event.getRawSlot());
             case MARKET_LIST -> marketManager.handleListingClick(player, event.getRawSlot(), holder.getPage());

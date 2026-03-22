@@ -7,6 +7,7 @@ import de.mcbesser.marketplace.gui.MenuHolder;
 import de.mcbesser.marketplace.gui.MenuType;
 import de.mcbesser.marketplace.pricing.PriceGuideManager;
 import de.mcbesser.marketplace.storage.ClaimStorage;
+import de.mcbesser.marketplace.util.CurrencyFormatter;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
@@ -96,7 +97,7 @@ public class MarketManager {
                 List.of("&7Links: +1", "&7Rechts: -1", "&7Shift+Links: +10", "&7Shift+Rechts: -10")));
         inventory.setItem(11, GuiItems.button(Material.GOLD_INGOT, "&6Preis grob",
                 List.of("&7Links: +100", "&7Rechts: -100", "&7Shift+Links: +1000", "&7Shift+Rechts: -1000")));
-        inventory.setItem(22, GuiItems.button(Material.EMERALD, "&6Angebot erstellen: " + (int) price + " Coins",
+        inventory.setItem(22, GuiItems.button(Material.EMERALD, "&6Angebot erstellen: " + CurrencyFormatter.shortAmount(price),
                 List.of("&7Marktpreis: " + priceRange(player),
                         "&7Erlaubt: " + allowedRange(player),
                         "&7Ohne Richtwert ist der erste Preis frei",
@@ -295,7 +296,7 @@ public class MarketManager {
         listings.add(listing);
         priceGuideManager.registerObservation(listed, price);
         save();
-        player.sendMessage("Marktangebot #" + listing.getId() + " f\u00fcr " + (int) price + " Coins erstellt.");
+        player.sendMessage("Marktangebot #" + listing.getId() + " fuer " + CurrencyFormatter.shortAmount(price) + " erstellt.");
     }
 
     private void buyListing(Player player, int listingId) {
@@ -305,7 +306,7 @@ public class MarketManager {
             return;
         }
         if (!economyService.withdraw(player.getUniqueId(), listing.getPrice())) {
-            player.sendMessage("Nicht genug Coins.");
+            player.sendMessage("Nicht genug CraftTaler.");
             return;
         }
         economyService.deposit(listing.getSellerId(), listing.getPrice());
@@ -325,7 +326,7 @@ public class MarketManager {
         List<String> lore = meta != null && meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
         lore.add(" ");
         lore.add("\u00A77Angebot: \u00A7f#" + listing.getId());
-        lore.add("\u00A77Preis: \u00A76" + (int) listing.getPrice() + " Coins");
+        lore.add("\u00A77Preis: \u00A76" + CurrencyFormatter.shortAmount(listing.getPrice()));
         lore.add("\u00A7aKlick zum Kaufen");
         if (meta != null) {
             meta.setLore(lore);
