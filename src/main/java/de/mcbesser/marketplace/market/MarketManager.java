@@ -62,6 +62,7 @@ public class MarketManager {
                 List.of("&7Niedrigster und h\u00f6chster Preis", "&7f\u00fcr das eingelegte Item oder dein Hand-Item")));
         inventory.setItem(15, GuiItems.button(Material.CHEST, "&bVerkaufen",
                 List.of("&7Lege ein Item in Slot 13", "&7und stelle den Preis ein")));
+        inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zur\u00fcck zum Hauptmen\u00fc")));
         inventory.setItem(22, GuiItems.button(Material.BARREL, "&eAbholfach",
                 List.of("&7Abgelaufene oder ausgelagerte Items")));
         player.openInventory(inventory);
@@ -80,7 +81,8 @@ public class MarketManager {
             }
             inventory.setItem(slot, createListingDisplay(sorted.get(index)));
         }
-        inventory.setItem(45, GuiItems.button(Material.ARROW, "&eZur\u00fcck", List.of("&7Vorherige Seite")));
+        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zum Hauptmen\u00fc")));
+        inventory.setItem(46, GuiItems.button(Material.ARROW, "&eZur\u00fcck", List.of("&7Vorherige Seite")));
         inventory.setItem(49, GuiItems.button(Material.COMPASS, "&aHauptmenue", List.of("&7Zur Markt\u00fcbersicht")));
         inventory.setItem(53, GuiItems.button(Material.ARROW, "&eWeiter", List.of("&7Naechste Seite")));
         player.openInventory(inventory);
@@ -97,6 +99,8 @@ public class MarketManager {
                 List.of("&7Links: +1", "&7Rechts: -1", "&7Shift+Links: +10", "&7Shift+Rechts: -10")));
         inventory.setItem(11, GuiItems.button(Material.GOLD_INGOT, "&6Preis grob",
                 List.of("&7Links: +100", "&7Rechts: -100", "&7Shift+Links: +1000", "&7Shift+Rechts: -1000")));
+        inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zur\u00fcck zum Hauptmen\u00fc")));
+        inventory.setItem(15, GuiItems.button(Material.ARROW, "&eZur Markt\u00fcbersicht", List.of("&7Zur\u00fcck ohne Angebot zu erstellen")));
         inventory.setItem(22, GuiItems.button(Material.EMERALD, "&6Angebot erstellen: " + CurrencyFormatter.shortAmount(price),
                 List.of("&7Marktpreis: " + priceRange(player),
                         "&7Erlaubt: " + allowedRange(player),
@@ -119,7 +123,9 @@ public class MarketManager {
     }
 
     public void handleMainClick(Player player, int rawSlot) {
-        if (rawSlot == 11) {
+        if (rawSlot == 18) {
+            player.performCommand("marketplace");
+        } else if (rawSlot == 11) {
             ignoreNextClose.add(player.getUniqueId());
             openListingPage(player, 0);
         } else if (rawSlot == 15) {
@@ -127,13 +133,17 @@ public class MarketManager {
             openSellMenu(player);
         } else if (rawSlot == 22) {
             ignoreNextClose.add(player.getUniqueId());
-            claimStorage.openClaims(player, 0);
+            claimStorage.openClaims(player, 0, ClaimStorage.CONTEXT_MARKET);
         }
     }
 
     public void handleListingClick(Player player, int rawSlot, int page) {
         List<MarketListing> sorted = listings.stream().sorted(Comparator.comparingDouble(MarketListing::getPrice)).toList();
-        if (rawSlot == 45 && page > 0) {
+        if (rawSlot == 45) {
+            player.performCommand("marketplace");
+            return;
+        }
+        if (rawSlot == 46 && page > 0) {
             ignoreNextClose.add(player.getUniqueId());
             openListingPage(player, page - 1);
             return;
@@ -170,6 +180,16 @@ public class MarketManager {
         switch (event.getRawSlot()) {
             case 10 -> current = Math.max(1, current + resolveStep(event.getClick(), 1, 10));
             case 11 -> current = Math.max(1, current + resolveStep(event.getClick(), 100, 1000));
+            case 18 -> {
+                ignoreNextClose.add(player.getUniqueId());
+                player.performCommand("marketplace");
+                return;
+            }
+            case 15 -> {
+                ignoreNextClose.add(player.getUniqueId());
+                openMain(player);
+                return;
+            }
             case 22 -> {
                 pendingSellPrice.put(player.getUniqueId(), current);
                 createListing(player, current);

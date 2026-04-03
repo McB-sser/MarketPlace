@@ -75,7 +75,8 @@ public class JobManager {
             inventory.setItem(slot, createJobDisplay(player, jobs.get(index), now));
         }
 
-        inventory.setItem(45, GuiItems.button(Material.ARROW, "&eZurueck", List.of("&7Vorherige Seite")));
+        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zum Hauptmen\u00fc")));
+        inventory.setItem(46, GuiItems.button(Material.ARROW, "&eZurueck", List.of("&7Vorherige Seite")));
         inventory.setItem(49, GuiItems.button(Material.WRITABLE_BOOK, "&aSpieler-Job erstellen",
                 List.of("&7Materialliste und Belohnung festlegen", "&7Belohnung wird direkt reserviert")));
         inventory.setItem(53, GuiItems.button(Material.ARROW, "&eWeiter", List.of("&7Naechste Seite")));
@@ -89,7 +90,11 @@ public class JobManager {
     }
 
     public void handleClick(Player player, InventoryClickEvent event, int page) {
-        if (event.getRawSlot() == 45 && page > 0) {
+        if (event.getRawSlot() == 45) {
+            player.performCommand("marketplace");
+            return;
+        }
+        if (event.getRawSlot() == 46 && page > 0) {
             openJobs(player, page - 1);
             return;
         }
@@ -167,24 +172,28 @@ public class JobManager {
             case 34 -> adjustSelectedAmount(state, 100);
             case 35 -> adjustSelectedAmount(state, 1000);
             case 36 -> adjustSelectedAmount(state, 10000);
-            case 45 -> openJobs(player);
-            case 46 -> adjustReward(state, -1000, player);
-            case 47 -> adjustReward(state, -100, player);
-            case 48 -> adjustReward(state, -10, player);
-            case 49 -> {
+            case 44 -> {
+                createPublicJob(player, state);
+                return;
+            }
+            case 45 -> {
+                player.performCommand("marketplace");
+                return;
+            }
+            case 46 -> openJobs(player);
+            case 47 -> adjustReward(state, -1000, player);
+            case 48 -> adjustReward(state, -100, player);
+            case 49 -> adjustReward(state, -10, player);
+            case 50 -> {
                 if (event.getClick().isShiftClick()) {
                     applySuggestedReward(player, state);
                 } else {
                     adjustReward(state, event.getClick().isRightClick() ? -1 : 1, player);
                 }
             }
-            case 50 -> adjustReward(state, 10, player);
-            case 51 -> adjustReward(state, 100, player);
-            case 52 -> adjustReward(state, 1000, player);
-            case 53 -> {
-                createPublicJob(player, state);
-                return;
-            }
+            case 51 -> adjustReward(state, 10, player);
+            case 52 -> adjustReward(state, 100, player);
+            case 53 -> adjustReward(state, 1000, player);
             default -> {
                 return;
             }
@@ -207,7 +216,9 @@ public class JobManager {
             lore.add("\u00A77" + displayName(requirement.material()) + ": \u00A7f"
                     + progressFor(player, job, requirement.material()) + "/" + requirement.amount());
         }
+        inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zum Hauptmen\u00fc")));
         inventory.setItem(22, GuiItems.button(Material.CHEST, "&eNur passende Job-Items", lore));
+        inventory.setItem(24, GuiItems.button(Material.ARROW, "&eZur Jobliste", List.of("&7Zur\u00fcck ohne Abgabe")));
         inventory.setItem(26, GuiItems.button(Material.EMERALD, "&aAbgeben", List.of("&7Lagervorrat und Inventar pruefen")));
         player.openInventory(inventory);
     }
@@ -216,6 +227,14 @@ public class JobManager {
         PlayerJob job = findPersonalJob(player.getUniqueId(), instanceId);
         if (job == null) {
             player.closeInventory();
+            return;
+        }
+        if (event.getRawSlot() == 18) {
+            player.performCommand("marketplace");
+            return;
+        }
+        if (event.getRawSlot() == 24) {
+            openJobs(player);
             return;
         }
         if (event.getRawSlot() == 26) {
@@ -478,19 +497,20 @@ public class JobManager {
         inventory.setItem(34, stepButton("+1000"));
         inventory.setItem(35, stepButton("+10000"));
 
-        inventory.setItem(45, GuiItems.button(Material.ARROW, "&eZurueck", List.of("&7Zur Jobliste")));
-        inventory.setItem(46, stepButton("-1000 CT"));
-        inventory.setItem(47, stepButton("-100 CT"));
-        inventory.setItem(48, stepButton("-10 CT"));
-        inventory.setItem(49, GuiItems.button(Material.SUNFLOWER, "&6Budget: " + CurrencyFormatter.shortAmount(state.getReward()),
-                List.of("&7Links +1 | Rechts -1", "&7Shift-Klick: Marktpreis uebernehmen",
-                        "&7Maximal verfuegbar: " + CurrencyFormatter.shortAmount(economyService.getBalance(player.getUniqueId())))));
-        inventory.setItem(50, stepButton("+10 CT"));
-        inventory.setItem(51, stepButton("+100 CT"));
-        inventory.setItem(52, stepButton("+1000 CT"));
-        inventory.setItem(53, GuiItems.button(Material.EMERALD_BLOCK, "&aJob erstellen",
+        inventory.setItem(44, GuiItems.button(Material.EMERALD_BLOCK, "&aJob erstellen",
                 List.of("&7Sichtbar fuer alle Spieler", "&7Belohnung: " + CurrencyFormatter.shortAmount(state.getReward()),
                         "&7Budget wird sofort abgezogen")));
+        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zum Hauptmen\u00fc")));
+        inventory.setItem(46, GuiItems.button(Material.ARROW, "&eZurueck", List.of("&7Zur Jobliste")));
+        inventory.setItem(47, stepButton("-1000 CT"));
+        inventory.setItem(48, stepButton("-100 CT"));
+        inventory.setItem(49, stepButton("-10 CT"));
+        inventory.setItem(50, GuiItems.button(Material.SUNFLOWER, "&6Budget: " + CurrencyFormatter.shortAmount(state.getReward()),
+                List.of("&7Links +1 | Rechts -1", "&7Shift-Klick: Marktpreis uebernehmen",
+                        "&7Maximal verfuegbar: " + CurrencyFormatter.shortAmount(economyService.getBalance(player.getUniqueId())))));
+        inventory.setItem(51, stepButton("+10 CT"));
+        inventory.setItem(52, stepButton("+100 CT"));
+        inventory.setItem(53, stepButton("+1000 CT"));
         player.openInventory(inventory);
     }
 

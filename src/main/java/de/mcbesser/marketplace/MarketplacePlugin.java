@@ -11,6 +11,7 @@ import de.mcbesser.marketplace.trade.TradeManager;
 import java.io.File;
 import java.io.IOException;
 import org.bukkit.Bukkit;
+import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ShapelessRecipe;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -61,6 +62,7 @@ public class MarketplacePlugin extends JavaPlugin {
                 new InteractionListener(this, marketplaceMenu, jobManager, marketManager, lottoManager, tradeManager, auctionManager, claimStorage, marketplaceSidebarManager),
                 this
         );
+        registerCommands();
 
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             jobManager.tick();
@@ -99,6 +101,24 @@ public class MarketplacePlugin extends JavaPlugin {
         if (priceGuideManager != null) {
             priceGuideManager.save();
         }
+    }
+
+    private void registerCommands() {
+        registerCommand("marketplace", new MarketplaceCommand(marketplaceMenu));
+        registerCommand("market", new MarketCommand(marketManager));
+        registerCommand("jobs", new JobsCommand(jobManager));
+        registerCommand("trade", new TradeCommand(tradeManager));
+        registerCommand("auction", new AuctionCommand(auctionManager));
+        registerCommand("lotto", new de.mcbesser.marketplace.lotto.LottoCommand(lottoManager));
+    }
+
+    private void registerCommand(String name, org.bukkit.command.CommandExecutor executor) {
+        PluginCommand command = getCommand(name);
+        if (command == null) {
+            getLogger().warning("Command nicht in plugin.yml registriert: " + name);
+            return;
+        }
+        command.setExecutor(executor);
     }
 }
 

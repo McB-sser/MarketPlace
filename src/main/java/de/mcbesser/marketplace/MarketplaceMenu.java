@@ -52,7 +52,7 @@ public class MarketplaceMenu {
             case 14 -> tradeManager.openPlayerList(player);
             case 16 -> auctionManager.openMain(player);
             case 20 -> lottoManager.openMain(player);
-            case 22 -> claimStorage.openClaims(player, 0);
+            case 22 -> claimStorage.openClaims(player, 0, ClaimStorage.CONTEXT_HUB);
             default -> {
             }
         }

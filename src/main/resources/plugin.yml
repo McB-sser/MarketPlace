@@ -1,7 +1,25 @@
-﻿name: MarketplacePlugin
+name: MarketplacePlugin
 version: 1.0.0
 main: de.mcbesser.marketplace.MarketplacePlugin
 api-version: "1.20"
 author: Codex
-
-
+commands:
+  marketplace:
+    description: Oeffnet das Marketplace-Hauptmenue
+    usage: /marketplace
+    aliases: [mp]
+  market:
+    description: Oeffnet den Markt
+    usage: /market
+  jobs:
+    description: Oeffnet die Job-Uebersicht
+    usage: /jobs
+  trade:
+    description: Oeffnet den Direkt-Handel
+    usage: /trade
+  auction:
+    description: Oeffnet die Auktion
+    usage: /auction
+  lotto:
+    description: Oeffnet das Lotto
+    usage: /lotto

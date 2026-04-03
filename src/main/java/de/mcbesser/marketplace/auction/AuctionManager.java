@@ -66,6 +66,7 @@ public class AuctionManager {
                 : pending.clone());
         inventory.setItem(15, GuiItems.button(Material.EMERALD_BLOCK, "&aAuktion starten",
                 List.of("&7Startpreis: " + CurrencyFormatter.shortAmount(startPrice), "&7Dauer: " + seconds + " Sekunden", "&7Gebote laufen im Chat")));
+        inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zur\u00fcck zum Hauptmen\u00fc")));
         inventory.setItem(22, activeAuctionDisplay());
         inventory.setItem(26, GuiItems.button(Material.BARREL, "&eAbholfach", List.of("&7Auktionsrueckgaben und Gewinne")));
         player.openInventory(inventory);
@@ -85,9 +86,14 @@ public class AuctionManager {
             case 11 -> setupPrice.put(player.getUniqueId(), Math.max(1, price + resolveStep(event.getClick(), 100, 1000)));
             case 12 -> setupDuration.put(player.getUniqueId(), seconds >= 180 ? 30 : seconds + 30);
             case 15 -> startAuction(player);
+            case 18 -> {
+                ignoreNextClose.add(player.getUniqueId());
+                player.performCommand("marketplace");
+                return;
+            }
             case 26 -> {
                 ignoreNextClose.add(player.getUniqueId());
-                claimStorage.openClaims(player, 0);
+                claimStorage.openClaims(player, 0, ClaimStorage.CONTEXT_AUCTION);
                 return;
             }
             default -> {

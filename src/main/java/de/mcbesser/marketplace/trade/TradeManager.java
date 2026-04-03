@@ -25,6 +25,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 public class TradeManager {
 
+    private static final int MAX_TRADE_ITEMS = 8;
+
     private final MarketplacePlugin plugin;
     private final EconomyService economyService;
     private final ClaimStorage claimStorage;
@@ -53,7 +55,10 @@ public class TradeManager {
             inventory.setItem(slot, GuiItems.button(Material.PLAYER_HEAD, "\u00A7a" + target.getName(),
                     List.of("\u00A77Klick f\u00fcr Handelsanfrage")));
         }
-        inventory.setItem(49, GuiItems.button(Material.PAPER, "\u00A7eOffene Anfrage annehmen", List.of("\u00A77Nimmt deine letzte Anfrage an")));
+        inventory.setItem(45, GuiItems.button(Material.COMPASS, "\u00A7aMarketplace", List.of("\u00A77Zur\u00fcck zum Hauptmen\u00fc")));
+        inventory.setItem(46, GuiItems.button(Material.SPYGLASS, "\u00A7eAktualisieren", List.of("\u00A77Online-Spieler neu laden")));
+        inventory.setItem(49, GuiItems.button(Material.PAPER, actionLabel(player), List.of(actionLore(player))));
+        inventory.setItem(51, GuiItems.button(Material.BARREL, "\u00A7eAbholfach", List.of("\u00A77Handelsgewinne und R\u00fcckgaben")));
         player.openInventory(inventory);
     }
 
@@ -62,8 +67,20 @@ public class TradeManager {
                 .filter(other -> !other.getUniqueId().equals(player.getUniqueId()))
                 .sorted(Comparator.comparing(Player::getName))
                 .toList();
+        if (rawSlot == 45) {
+            player.performCommand("marketplace");
+            return;
+        }
+        if (rawSlot == 46) {
+            openPlayerList(player);
+            return;
+        }
         if (rawSlot == 49) {
-            acceptRequest(player);
+            resumeOrAccept(player);
+            return;
+        }
+        if (rawSlot == 51) {
+            claimStorage.openClaims(player, 0, ClaimStorage.CONTEXT_TRADE);
             return;
         }
         if (rawSlot < 0 || rawSlot >= targets.size() || rawSlot >= 45) {
@@ -82,14 +99,15 @@ public class TradeManager {
         Inventory inventory = Bukkit.createInventory(new MenuHolder(MenuType.TRADE_SESSION), 54, "Direkthandel");
         List<ItemStack> ownItems = first ? session.getFirstItems() : session.getSecondItems();
         List<ItemStack> otherItems = first ? session.getSecondItems() : session.getFirstItems();
-        for (int i = 0; i < Math.min(8, ownItems.size()); i++) {
+        for (int i = 0; i < Math.min(MAX_TRADE_ITEMS, ownItems.size()); i++) {
             inventory.setItem(i, ownItems.get(i).clone());
         }
-        for (int i = 0; i < Math.min(8, otherItems.size()); i++) {
+        for (int i = 0; i < Math.min(MAX_TRADE_ITEMS, otherItems.size()); i++) {
             inventory.setItem(9 + i, decorateForeign(otherItems.get(i)));
         }
         inventory.setItem(27, GuiItems.button(Material.HOPPER, "\u00A7aHand-Item hinzufuegen", List.of("\u00A77Nimmt das komplette Stack aus deiner Hand")));
         inventory.setItem(28, GuiItems.button(Material.BARRIER, "\u00A7cLetztes eigenes Item entfernen", List.of("\u00A77Legt dein letztes Angebot zurueck")));
+        inventory.setItem(29, GuiItems.button(Material.PLAYER_HEAD, "\u00A7eSpielerliste", List.of("\u00A77Weitere Anfragen und Partner anzeigen")));
         inventory.setItem(30, GuiItems.button(Material.GOLD_NUGGET, "\u00A76CT -10", List.of("\u00A77Verringert dein CraftTaler-Angebot")));
         inventory.setItem(31, GuiItems.button(Material.GOLD_INGOT, "\u00A76CT +10", List.of("\u00A77Erhoeht dein CraftTaler-Angebot")));
         inventory.setItem(32, GuiItems.button(Material.GOLD_BLOCK, "\u00A76CT +100", List.of("\u00A77Erhoeht dein CraftTaler-Angebot")));
@@ -98,6 +116,8 @@ public class TradeManager {
         inventory.setItem(40, GuiItems.button(Material.SUNFLOWER,
                 "\u00A7eDein Angebot: " + CurrencyFormatter.shortAmount(first ? session.getFirstCoins() : session.getSecondCoins()),
                 List.of("\u00A77Gegenseite: " + CurrencyFormatter.shortAmount(first ? session.getSecondCoins() : session.getFirstCoins()))));
+        inventory.setItem(45, GuiItems.button(Material.COMPASS, "\u00A7aMarketplace", List.of("\u00A77Hauptmen\u00fc \u00f6ffnen, Handel bleibt aktiv")));
+        inventory.setItem(49, GuiItems.button(Material.BARREL, "\u00A7eAbholfach", List.of("\u00A77Handelsgewinne und R\u00fcckgaben")));
         player.openInventory(inventory);
     }
 
@@ -110,11 +130,23 @@ public class TradeManager {
         switch (rawSlot) {
             case 27 -> addHandItem(player, session);
             case 28 -> removeLastOwnItem(player, session);
+            case 29 -> {
+                openPlayerList(player);
+                return;
+            }
             case 30 -> changeCoins(player, session, -10);
             case 31 -> changeCoins(player, session, 10);
             case 32 -> changeCoins(player, session, 100);
             case 34 -> confirm(player, session);
             case 35 -> cancel(player.getUniqueId(), true);
+            case 45 -> {
+                player.performCommand("marketplace");
+                return;
+            }
+            case 49 -> {
+                claimStorage.openClaims(player, 0, ClaimStorage.CONTEXT_TRADE);
+                return;
+            }
             default -> {
                 return;
             }
@@ -146,12 +178,24 @@ public class TradeManager {
     }
 
     private void sendRequest(Player player, Player target) {
+        if (sessions.containsKey(player.getUniqueId())) {
+            openTradeView(player);
+            return;
+        }
+        if (sessions.containsKey(target.getUniqueId())) {
+            player.sendMessage(target.getName() + " ist bereits in einem Handel.");
+            return;
+        }
         pendingRequests.put(target.getUniqueId(), player.getUniqueId());
         player.sendMessage("Handelsanfrage an " + target.getName() + " gesendet.");
         target.sendMessage(player.getName() + " m\u00f6chte mit dir handeln. Nutze /trade oder klick im Menue auf Annehmen.");
     }
 
     private void acceptRequest(Player player) {
+        if (sessions.containsKey(player.getUniqueId())) {
+            openTradeView(player);
+            return;
+        }
         UUID requesterId = pendingRequests.remove(player.getUniqueId());
         if (requesterId == null) {
             player.sendMessage("Keine offene Anfrage.");
@@ -160,6 +204,10 @@ public class TradeManager {
         Player requester = Bukkit.getPlayer(requesterId);
         if (requester == null) {
             player.sendMessage("Anfragender Spieler ist offline.");
+            return;
+        }
+        if (sessions.containsKey(requesterId)) {
+            player.sendMessage("Der anfragende Spieler handelt bereits anderweitig.");
             return;
         }
         TradeSession session = new TradeSession(requester.getUniqueId(), player.getUniqueId(), System.currentTimeMillis());
@@ -177,11 +225,12 @@ public class TradeManager {
             player.sendMessage("Halte ein Item in der Hand.");
             return;
         }
-        if (session.getFirstPlayer().equals(player.getUniqueId())) {
-            session.getFirstItems().add(held.clone());
-        } else {
-            session.getSecondItems().add(held.clone());
+        List<ItemStack> ownItems = session.getFirstPlayer().equals(player.getUniqueId()) ? session.getFirstItems() : session.getSecondItems();
+        if (ownItems.size() >= MAX_TRADE_ITEMS) {
+            player.sendMessage("Du kannst maximal " + MAX_TRADE_ITEMS + " Stacks anbieten.");
+            return;
         }
+        ownItems.add(held.clone());
         player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
         resetConfirmations(session);
     }
@@ -222,10 +271,24 @@ public class TradeManager {
         } else {
             session.setSecondAccepted(true);
         }
+        Player other = Bukkit.getPlayer(partnerOf(session, player.getUniqueId()));
         if (session.isFirstAccepted() && session.isSecondAccepted()) {
             completeTrade(session);
         } else {
             player.sendMessage("Bestaetigt. Warte auf den Partner.");
+            if (other != null) {
+                other.sendMessage(player.getName() + " hat sein Angebot bestaetigt.");
+            }
+        }
+    }
+
+    public boolean hasActiveSession(UUID playerId) {
+        return sessions.containsKey(playerId);
+    }
+
+    public void handleClose(Player player) {
+        if (sessions.containsKey(player.getUniqueId())) {
+            player.sendMessage("Handel bleibt offen. Nutze /trade zum Fortsetzen oder den Abbrechen-Knopf.");
         }
     }
 
@@ -316,6 +379,28 @@ public class TradeManager {
     private void resetConfirmations(TradeSession session) {
         session.setFirstAccepted(false);
         session.setSecondAccepted(false);
+    }
+
+    private void resumeOrAccept(Player player) {
+        if (sessions.containsKey(player.getUniqueId())) {
+            openTradeView(player);
+            return;
+        }
+        acceptRequest(player);
+    }
+
+    private String actionLabel(Player player) {
+        if (sessions.containsKey(player.getUniqueId())) {
+            return "\u00A7aAktiven Handel \u00f6ffnen";
+        }
+        return "\u00A7eOffene Anfrage annehmen";
+    }
+
+    private String actionLore(Player player) {
+        if (sessions.containsKey(player.getUniqueId())) {
+            return "\u00A77Setzt deinen aktuellen Handel fort";
+        }
+        return "\u00A77Nimmt deine letzte Handelsanfrage an";
     }
 }
 

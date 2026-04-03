@@ -66,7 +66,7 @@ public class InteractionListener implements Listener {
             case MARKET_LIST -> marketManager.handleListingClick(player, event.getRawSlot(), holder.getPage());
             case MARKET_SELL -> marketManager.handleSellClick(player, event);
             case LOTTO_MAIN -> lottoManager.handleClick(player, event.getRawSlot());
-            case CLAIMS -> claimStorage.handleClaimClick(player, event.getRawSlot(), holder.getPage());
+            case CLAIMS -> claimStorage.handleClaimClick(player, event.getRawSlot(), holder.getPage(), holder.getContext());
             case TRADE_PLAYERS -> tradeManager.handlePlayerListClick(player, event.getRawSlot());
             case TRADE_SESSION -> tradeManager.handleTradeClick(player, event.getRawSlot());
             case AUCTION_MAIN -> auctionManager.handleClick(player, event);
@@ -89,6 +89,9 @@ public class InteractionListener implements Listener {
         }
         if (holder.getType() == MenuType.AUCTION_MAIN) {
             auctionManager.handleClose(player);
+        }
+        if (holder.getType() == MenuType.TRADE_SESSION) {
+            tradeManager.handleClose(player);
         }
     }
 

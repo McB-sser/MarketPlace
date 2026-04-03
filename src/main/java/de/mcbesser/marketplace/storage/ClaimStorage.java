@@ -27,6 +27,12 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 public class ClaimStorage {
 
+    public static final String CONTEXT_HUB = "hub";
+    public static final String CONTEXT_MARKET = "market";
+    public static final String CONTEXT_AUCTION = "auction";
+    public static final String CONTEXT_LOTTO = "lotto";
+    public static final String CONTEXT_TRADE = "trade";
+
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
             .withZone(ZoneId.systemDefault());
     private final MarketplacePlugin plugin;
@@ -51,8 +57,12 @@ public class ClaimStorage {
     }
 
     public void openClaims(Player player, int page) {
+        openClaims(player, page, CONTEXT_HUB);
+    }
+
+    public void openClaims(Player player, int page, String context) {
         List<ClaimEntry> entries = claims.getOrDefault(player.getUniqueId(), List.of());
-        Inventory inventory = Bukkit.createInventory(new MenuHolder(MenuType.CLAIMS, page, ""), 54, "Abholfach");
+        Inventory inventory = Bukkit.createInventory(new MenuHolder(MenuType.CLAIMS, page, context), 54, "Abholfach");
         int start = page * 45;
         for (int slot = 0; slot < 45; slot++) {
             int index = start + slot;
@@ -62,20 +72,29 @@ public class ClaimStorage {
             ClaimEntry entry = entries.get(index);
             inventory.setItem(slot, createDisplay(entry));
         }
-        inventory.setItem(45, GuiItems.button(Material.ARROW, "&eZur\u00fcck", List.of("&7Vorherige Seite")));
-        inventory.setItem(49, GuiItems.button(Material.CHEST, "&aAbholfach", List.of("&7Klicke auf ein Item zum Abholen")));
+        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zum Hauptmen\u00fc")));
+        inventory.setItem(46, GuiItems.button(Material.ARROW, "&eZur\u00fcck", List.of("&7Vorherige Seite")));
+        inventory.setItem(49, GuiItems.button(Material.COMPASS, "&aZur\u00fcck zum Men\u00fc", List.of(contextDescription(context))));
         inventory.setItem(53, GuiItems.button(Material.ARROW, "&eWeiter", List.of("&7Naechste Seite")));
         player.openInventory(inventory);
     }
 
-    public void handleClaimClick(Player player, int rawSlot, int page) {
+    public void handleClaimClick(Player player, int rawSlot, int page, String context) {
         List<ClaimEntry> entries = claims.getOrDefault(player.getUniqueId(), new ArrayList<>());
-        if (rawSlot == 45 && page > 0) {
-            openClaims(player, page - 1);
+        if (rawSlot == 45) {
+            player.performCommand("marketplace");
+            return;
+        }
+        if (rawSlot == 46 && page > 0) {
+            openClaims(player, page - 1, context);
+            return;
+        }
+        if (rawSlot == 49) {
+            player.performCommand(switchCommand(context));
             return;
         }
         if (rawSlot == 53 && ((page + 1) * 45) < entries.size()) {
-            openClaims(player, page + 1);
+            openClaims(player, page + 1, context);
             return;
         }
         if (rawSlot < 0 || rawSlot >= 45) {
@@ -95,7 +114,27 @@ public class ClaimStorage {
         claims.put(player.getUniqueId(), entries);
         player.sendMessage("Item aus dem Abholfach entnommen.");
         save();
-        openClaims(player, page);
+        openClaims(player, page, context);
+    }
+
+    private String switchCommand(String context) {
+        return switch (context == null ? "" : context) {
+            case CONTEXT_MARKET -> "market";
+            case CONTEXT_AUCTION -> "auction";
+            case CONTEXT_LOTTO -> "lotto";
+            case CONTEXT_TRADE -> "trade";
+            default -> "marketplace";
+        };
+    }
+
+    private String contextDescription(String context) {
+        return switch (context == null ? "" : context) {
+            case CONTEXT_MARKET -> "&7Zur Markt\u00fcbersicht";
+            case CONTEXT_AUCTION -> "&7Zur Auktions\u00fcbersicht";
+            case CONTEXT_LOTTO -> "&7Zur Lotto\u00fcbersicht";
+            case CONTEXT_TRADE -> "&7Zur Handels\u00fcbersicht";
+            default -> "&7Zum Marketplace-Hauptmen\u00fc";
+        };
     }
 
     public void save() {

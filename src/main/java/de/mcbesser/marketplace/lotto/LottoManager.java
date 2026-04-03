@@ -60,11 +60,13 @@ public class LottoManager {
                 List.of("&7Preis: " + CurrencyFormatter.shortAmount(currentRound.getTicketPrice() * 5))));
         inventory.setItem(15, GuiItems.button(Material.BOOK, "&a10 Tickets",
                 List.of("&7Preis: " + CurrencyFormatter.shortAmount(currentRound.getTicketPrice() * 10))));
+        inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zur\u00fcck zum Hauptmen\u00fc")));
         inventory.setItem(22, GuiItems.button(Material.CLOCK, "&eZiehung in " + remainingText(),
                 List.of("&7Tickets: " + currentRound.getTotalTickets(),
                         "&7Teilnehmer: " + currentRound.getParticipantCount(),
                         "&7Deine Tickets: " + currentRound.getTickets().getOrDefault(player.getUniqueId(), 0),
                         "&7Mindestens 2 Teilnehmer n\u00f6tig")));
+        inventory.setItem(24, GuiItems.button(Material.BARREL, "&eAbholfach", List.of("&7Gewinne und R\u00fcckgaben")));
         player.openInventory(inventory);
     }
 
@@ -74,6 +76,14 @@ public class LottoManager {
             case 10 -> buyTickets(player, 1);
             case 11 -> buyTickets(player, 5);
             case 15 -> buyTickets(player, 10);
+            case 18 -> {
+                player.performCommand("marketplace");
+                return;
+            }
+            case 24 -> {
+                claimStorage.openClaims(player, 0, ClaimStorage.CONTEXT_LOTTO);
+                return;
+            }
             default -> {
                 return;
             }

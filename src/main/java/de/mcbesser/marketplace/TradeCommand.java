@@ -20,7 +20,11 @@ public class TradeCommand implements CommandExecutor {
             sender.sendMessage("Nur Spieler k\u00f6nnen diesen Befehl nutzen.");
             return true;
         }
-        tradeManager.openPlayerList(player);
+        if (tradeManager.hasActiveSession(player.getUniqueId())) {
+            tradeManager.openTradeView(player);
+        } else {
+            tradeManager.openPlayerList(player);
+        }
         return true;
     }
 }
