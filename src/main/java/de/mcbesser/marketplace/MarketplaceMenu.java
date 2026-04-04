@@ -8,6 +8,7 @@ import de.mcbesser.marketplace.jobs.JobManager;
 import de.mcbesser.marketplace.lotto.LottoManager;
 import de.mcbesser.marketplace.mail.MailManager;
 import de.mcbesser.marketplace.market.MarketManager;
+import de.mcbesser.marketplace.notes.NoteManager;
 import de.mcbesser.marketplace.storage.ClaimStorage;
 import de.mcbesser.marketplace.trade.TradeManager;
 import java.util.List;
@@ -25,9 +26,10 @@ public class MarketplaceMenu {
     private final TradeManager tradeManager;
     private final AuctionManager auctionManager;
     private final ClaimStorage claimStorage;
+    private final NoteManager noteManager;
 
     public MarketplaceMenu(JobManager jobManager, MarketManager marketManager, LottoManager lottoManager, MailManager mailManager, TradeManager tradeManager,
-                      AuctionManager auctionManager, ClaimStorage claimStorage) {
+                      AuctionManager auctionManager, ClaimStorage claimStorage, NoteManager noteManager) {
         this.jobManager = jobManager;
         this.marketManager = marketManager;
         this.lottoManager = lottoManager;
@@ -35,6 +37,7 @@ public class MarketplaceMenu {
         this.tradeManager = tradeManager;
         this.auctionManager = auctionManager;
         this.claimStorage = claimStorage;
+        this.noteManager = noteManager;
     }
 
     public void open(Player player) {
@@ -46,6 +49,7 @@ public class MarketplaceMenu {
         inventory.setItem(20, GuiItems.button(Material.NETHER_STAR, "&6Lotto", List.of("&7Tickets kaufen und Item gewinnen")));
         inventory.setItem(22, GuiItems.button(Material.BARREL, "&dAbholfach", List.of("&7R\u00fcckgaben und Gewinne")));
         inventory.setItem(24, GuiItems.button(Material.WRITABLE_BOOK, "&eSpieler-Mail", List.of("&7Items, Geld und Nachricht senden")));
+        inventory.setItem(26, GuiItems.button(Material.BOOK, "&6Notizen", List.of("&7Pers\u00f6nliche Notiz hinterlegen")));
         player.openInventory(inventory);
     }
 
@@ -58,6 +62,7 @@ public class MarketplaceMenu {
             case 20 -> lottoManager.openMain(player);
             case 22 -> claimStorage.openClaims(player, 0, ClaimStorage.CONTEXT_HUB);
             case 24 -> mailManager.openPlayerList(player);
+            case 26 -> noteManager.openMain(player);
             default -> {
             }
         }

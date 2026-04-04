@@ -17,6 +17,9 @@ commands:
   mail:
     description: \u00d6ffnet Spieler-Mail
     usage: /mail
+  notes:
+    description: \u00d6ffnet deine Notizen
+    usage: /notes
   trade:
     description: \u00d6ffnet den Direkt-Handel
     usage: /trade

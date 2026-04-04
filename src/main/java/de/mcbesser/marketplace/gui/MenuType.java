@@ -13,6 +13,8 @@ public enum MenuType {
     MAIL_PLAYERS,
     MAIL_COMPOSE,
     MAIL_INBOX,
+    MAIL_VIEW,
+    NOTES,
     TRADE_PLAYERS,
     TRADE_SESSION,
     AUCTION_MAIN

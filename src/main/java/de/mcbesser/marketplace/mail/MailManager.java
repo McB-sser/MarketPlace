@@ -30,7 +30,6 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerEditBookEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.BookMeta;
 
 public class MailManager {
@@ -47,6 +46,7 @@ public class MailManager {
     private final AtomicInteger nextId = new AtomicInteger(1);
     private final Map<UUID, MailDraft> drafts = new HashMap<>();
     private final Map<UUID, List<MailEntry>> inboxes = new HashMap<>();
+    private final Map<UUID, MailViewContext> readReturnTargets = new HashMap<>();
     private final Map<UUID, ItemStack> editingBookSnapshots = new HashMap<>();
     private final Map<UUID, Integer> editingBookSlots = new HashMap<>();
     private final Map<UUID, ItemStack> previousHeldItems = new HashMap<>();
@@ -201,6 +201,31 @@ public class MailManager {
         player.openInventory(inventory);
     }
 
+    public void openMailDetail(Player player, int page, int entryId) {
+        MailEntry entry = findEntry(player.getUniqueId(), entryId);
+        if (entry == null) {
+            openInbox(player, page);
+            return;
+        }
+        Inventory inventory = Bukkit.createInventory(new MenuHolder(MenuType.MAIL_VIEW, page, Integer.toString(entryId)), 54,
+                "Mail von " + entry.getSenderName());
+        for (int i = 0; i < Math.min(ITEM_SLOTS.length, entry.getItems().size()); i++) {
+            inventory.setItem(ITEM_SLOTS[i], entry.getItems().get(i).clone());
+        }
+        fillDetailDecorations(inventory);
+        inventory.setItem(4, GuiItems.button(Material.PAPER, "&eDatum",
+                List.of("&7" + FORMATTER.format(Instant.ofEpochMilli(entry.getCreatedAt())))));
+        inventory.setItem(13, GuiItems.button(Material.SUNFLOWER, "&6CraftTaler: " + CurrencyFormatter.shortAmount(entry.getCoins()),
+                List.of("&7Klick zum Auszahlen")));
+        inventory.setItem(22, GuiItems.button(Material.WRITTEN_BOOK, "&eMail lesen",
+                List.of("&7" + messagePreview(entry.getMessage()), "&7Nachricht im Buch \u00f6ffnen")));
+        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zum Hauptmen\u00fc")));
+        inventory.setItem(46, GuiItems.button(Material.ARROW, "&eZur\u00fcck", List.of("&7Zur\u00fcck ins Postfach")));
+        inventory.setItem(49, GuiItems.button(Material.CHEST, "&aAlles abholen", List.of("&7Items und Geld \u00fcbernehmen")));
+        inventory.setItem(53, GuiItems.button(Material.BARRIER, "&cMail l\u00f6schen", List.of("&7Eintrag aus dem Postfach entfernen")));
+        player.openInventory(inventory);
+    }
+
     public void handleInboxClick(Player player, int rawSlot, int page) {
         List<MailEntry> entries = inboxes.getOrDefault(player.getUniqueId(), new ArrayList<>());
         if (rawSlot == 45) {
@@ -230,10 +255,86 @@ public class MailManager {
         if (index >= entries.size()) {
             return;
         }
-        claimMail(player, entries.remove(index));
-        inboxes.put(player.getUniqueId(), entries);
-        save();
-        openInbox(player, page);
+        openMailDetail(player, page, entries.get(index).getId());
+    }
+
+    public void handleMailDetailClick(Player player, InventoryClickEvent event, int page, int entryId) {
+        MailEntry entry = findEntry(player.getUniqueId(), entryId);
+        if (entry == null) {
+            openInbox(player, page);
+            return;
+        }
+        int rawSlot = event.getRawSlot();
+        int topSize = event.getView().getTopInventory().getSize();
+        if (rawSlot < topSize && isItemSlot(rawSlot)) {
+            if (event.getCursor() != null && !event.getCursor().getType().isAir()) {
+                event.setCancelled(true);
+                return;
+            }
+            event.setCancelled(false);
+            scheduleMailDetailSync(player, entryId);
+            return;
+        }
+        if (rawSlot >= topSize) {
+            if (event.getClick().isShiftClick()) {
+                event.setCancelled(true);
+                return;
+            }
+            event.setCancelled(false);
+            scheduleMailDetailSync(player, entryId);
+            return;
+        }
+        switch (rawSlot) {
+            case 45 -> player.performCommand("marketplace");
+            case 46 -> openInbox(player, page);
+            case 13 -> {
+                if (entry.getCoins() <= 0) {
+                    return;
+                }
+                economyService.deposit(player.getUniqueId(), entry.getCoins());
+                entry.setCoins(0);
+                save();
+                MessageUtil.send(player, "CraftTaler aus der Mail erhalten.");
+                openMailDetail(player, page, entryId);
+            }
+            case 22 -> openReadableMail(player, page, entry);
+            case 49 -> {
+                syncMailDetailFromView(entry, event.getView().getTopInventory());
+                deleteEntry(player.getUniqueId(), entryId);
+                claimMail(player, entry);
+                openInbox(player, page);
+            }
+            case 53 -> {
+                syncMailDetailFromView(entry, event.getView().getTopInventory());
+                deleteEntry(player.getUniqueId(), entryId);
+                MessageUtil.send(player, "Mail gel\u00f6scht.");
+                openInbox(player, page);
+            }
+            default -> {
+            }
+        }
+    }
+
+    public void handleMailDetailClose(Player player, int entryId, Inventory inventory) {
+        MailEntry entry = findEntry(player.getUniqueId(), entryId);
+        if (entry == null) {
+            return;
+        }
+        syncMailDetailFromView(entry, inventory);
+    }
+
+    public int getUnreadCount(UUID playerId) {
+        return inboxes.getOrDefault(playerId, List.of()).size();
+    }
+
+    public void sendUnreadReminder(Player player) {
+        int unread = getUnreadCount(player.getUniqueId());
+        if (unread <= 0) {
+            return;
+        }
+        MessageUtil.sendActions(player, "Du hast " + unread + " Spieler-Mail" + (unread == 1 ? "" : "s") + " im Postfach.",
+                MessageUtil.action("Postfach \u00f6ffnen", "mail"),
+                MessageUtil.action("Marketplace", "marketplace"));
     }
 
     public boolean handleBookEdit(PlayerEditBookEvent event) {
@@ -266,6 +367,11 @@ public class MailManager {
 
     public void resumeDraft(Player player) {
         captureBookMessage(player);
+        MailViewContext viewContext = readReturnTargets.remove(player.getUniqueId());
+        if (viewContext != null) {
+            openMailDetail(player, viewContext.page(), viewContext.entryId());
+            return;
+        }
         if (hasDraft(player.getUniqueId())) {
             openCompose(player);
         } else {
@@ -416,6 +522,25 @@ public class MailManager {
         }
     }
 
+    private void fillDetailDecorations(Inventory inventory) {
+        ItemStack glass = GuiItems.button(Material.BLACK_STAINED_GLASS_PANE, " ", List.of());
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            if (isItemSlot(slot) || slot == 4 || slot == 13 || slot == 22 || slot == 45 || slot == 46 || slot == 49 || slot == 53) {
+                continue;
+            }
+            inventory.setItem(slot, glass);
+        }
+    }
+
+    private void openReadableMail(Player player, int page, MailEntry entry) {
+        readReturnTargets.put(player.getUniqueId(), new MailViewContext(page, entry.getId()));
+        player.openBook(createReadableBook(entry));
+        plugin.getServer().getScheduler().runTask(plugin, () ->
+                MessageUtil.sendActions(player, "Nach dem Lesen hier zur\u00fcck zur Mail.",
+                        MessageUtil.action("Mail \u00f6ffnen", "mail"),
+                        MessageUtil.action("Postfach", "mail")));
+    }
+
     private void changeCoins(Player player, MailDraft draft, double delta) {
         double next = Math.max(0, draft.getCoins() + delta);
         if (next > economyService.getBalance(player.getUniqueId())) {
@@ -468,7 +593,7 @@ public class MailManager {
         MessageUtil.send(player, "Mail an " + draft.getRecipientName() + " gesendet.");
         Player recipient = Bukkit.getPlayer(draft.getRecipientId());
         if (recipient != null) {
-            MessageUtil.sendActions(recipient, "Neue Spieler-Mail von " + player.getName() + ".",
+            MessageUtil.sendActions(recipient, "Du hast neue Spieler-Mail von " + player.getName() + ".",
                     MessageUtil.action("Postfach \u00f6ffnen", "mail"),
                     MessageUtil.action("Marketplace", "marketplace"));
         }
@@ -514,6 +639,50 @@ public class MailManager {
         MessageUtil.send(player, "Mail von " + entry.getSenderName() + " erhalten.");
     }
 
+    private MailEntry findEntry(UUID playerId, int entryId) {
+        return inboxes.getOrDefault(playerId, List.of()).stream()
+                .filter(entry -> entry.getId() == entryId)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private void deleteEntry(UUID playerId, int entryId) {
+        List<MailEntry> entries = inboxes.getOrDefault(playerId, new ArrayList<>());
+        entries.removeIf(entry -> entry.getId() == entryId);
+        inboxes.put(playerId, entries);
+        save();
+    }
+
+    private void scheduleMailDetailSync(Player player, int entryId) {
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (!(player.getOpenInventory().getTopInventory().getHolder() instanceof MenuHolder holder)
+                    || holder.getType() != MenuType.MAIL_VIEW
+                    || !holder.getContext().equals(Integer.toString(entryId))) {
+                return;
+            }
+            MailEntry entry = findEntry(player.getUniqueId(), entryId);
+            if (entry == null) {
+                return;
+            }
+            syncMailDetailFromView(entry, player.getOpenInventory().getTopInventory());
+        });
+    }
+
+    private void syncMailDetailFromView(MailEntry entry, Inventory inventory) {
+        List<ItemStack> items = new ArrayList<>();
+        for (int slot : ITEM_SLOTS) {
+            ItemStack item = inventory.getItem(slot);
+            if (item != null && !item.getType().isAir()) {
+                items.add(item.clone());
+            }
+        }
+        if (!matches(entry.getItems(), items)) {
+            entry.getItems().clear();
+            entry.getItems().addAll(items);
+            save();
+        }
+    }
+
     private ItemStack createInboxDisplay(MailEntry entry) {
         Material icon = entry.getItems().isEmpty() ? Material.PAPER : entry.getItems().get(0).getType();
         return GuiItems.button(icon, "&aPost von " + entry.getSenderName(),
@@ -521,7 +690,26 @@ public class MailManager {
                         "&7Items: " + entry.getItems().size(),
                         "&7Nachricht: " + messagePreview(entry.getMessage()),
                         "&7Datum: " + FORMATTER.format(Instant.ofEpochMilli(entry.getCreatedAt())),
-                        "&aKlick zum Abholen"));
+                        "&aKlick zum \u00d6ffnen"));
+    }
+
+    private ItemStack createReadableBook(MailEntry entry) {
+        ItemStack book = new ItemStack(Material.WRITTEN_BOOK);
+        BookMeta meta = (BookMeta) book.getItemMeta();
+        meta.setTitle("Mail von " + entry.getSenderName());
+        meta.setAuthor(entry.getSenderName());
+        if (entry.getMessage().isBlank()) {
+            meta.addPage("Keine Nachricht");
+        } else {
+            for (String page : splitPages(entry.getMessage())) {
+                meta.addPage(page);
+            }
+        }
+        book.setItemMeta(meta);
+        return book;
+    }
+
+    private record MailViewContext(int page, int entryId) {
     }
 
     private String draftButtonTitle(Player player) {

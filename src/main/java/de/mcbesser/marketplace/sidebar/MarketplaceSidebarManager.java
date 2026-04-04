@@ -6,6 +6,7 @@ import de.mcbesser.marketplace.HandelsblattItem;
 import de.mcbesser.marketplace.auction.AuctionManager;
 import de.mcbesser.marketplace.jobs.JobManager;
 import de.mcbesser.marketplace.jobs.PlayerJob;
+import de.mcbesser.marketplace.mail.MailManager;
 import java.util.ArrayList;
 import java.util.List;
 import org.bukkit.Bukkit;
@@ -23,12 +24,14 @@ public class MarketplaceSidebarManager {
     private final EconomyService economyService;
     private final JobManager jobManager;
     private final AuctionManager auctionManager;
+    private final MailManager mailManager;
 
-    public MarketplaceSidebarManager(MarketplacePlugin plugin, EconomyService economyService, JobManager jobManager, AuctionManager auctionManager) {
+    public MarketplaceSidebarManager(MarketplacePlugin plugin, EconomyService economyService, JobManager jobManager, AuctionManager auctionManager, MailManager mailManager) {
         this.plugin = plugin;
         this.economyService = economyService;
         this.jobManager = jobManager;
         this.auctionManager = auctionManager;
+        this.mailManager = mailManager;
     }
 
     public void tick() {
@@ -59,6 +62,13 @@ public class MarketplaceSidebarManager {
         lines.add("\u00A70");
         lines.add("\u00A77Auktion");
         lines.addAll(auctionManager.sidebarLines());
+
+        int unreadMail = mailManager.getUnreadCount(player.getUniqueId());
+        if (unreadMail > 0) {
+            lines.add("\u00A70");
+            lines.add("\u00A76Postfach");
+            lines.add("\u00A7f" + unreadMail + " neue Mail" + (unreadMail == 1 ? "" : "s"));
+        }
 
         PlayerJob pinned = jobManager.getPinnedJob(player.getUniqueId());
         if (pinned != null) {

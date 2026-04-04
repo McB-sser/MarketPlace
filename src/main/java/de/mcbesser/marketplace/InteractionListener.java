@@ -7,6 +7,7 @@ import de.mcbesser.marketplace.jobs.JobManager;
 import de.mcbesser.marketplace.lotto.LottoManager;
 import de.mcbesser.marketplace.mail.MailManager;
 import de.mcbesser.marketplace.market.MarketManager;
+import de.mcbesser.marketplace.notes.NoteManager;
 import de.mcbesser.marketplace.sidebar.MarketplaceSidebarManager;
 import de.mcbesser.marketplace.storage.ClaimStorage;
 import de.mcbesser.marketplace.trade.TradeManager;
@@ -33,13 +34,14 @@ public class InteractionListener implements Listener {
     private final MarketManager marketManager;
     private final LottoManager lottoManager;
     private final MailManager mailManager;
+    private final NoteManager noteManager;
     private final TradeManager tradeManager;
     private final AuctionManager auctionManager;
     private final ClaimStorage claimStorage;
     private final MarketplaceSidebarManager marketplaceSidebarManager;
 
     public InteractionListener(MarketplacePlugin plugin, MarketplaceMenu marketplaceMenu, JobManager jobManager, MarketManager marketManager,
-                               LottoManager lottoManager, MailManager mailManager, TradeManager tradeManager, AuctionManager auctionManager,
+                               LottoManager lottoManager, MailManager mailManager, NoteManager noteManager, TradeManager tradeManager, AuctionManager auctionManager,
                                ClaimStorage claimStorage, MarketplaceSidebarManager marketplaceSidebarManager) {
         this.plugin = plugin;
         this.marketplaceMenu = marketplaceMenu;
@@ -47,6 +49,7 @@ public class InteractionListener implements Listener {
         this.marketManager = marketManager;
         this.lottoManager = lottoManager;
         this.mailManager = mailManager;
+        this.noteManager = noteManager;
         this.tradeManager = tradeManager;
         this.auctionManager = auctionManager;
         this.claimStorage = claimStorage;
@@ -107,6 +110,14 @@ public class InteractionListener implements Listener {
                 event.setCancelled(true);
                 mailManager.handleInboxClick(player, event.getRawSlot(), holder.getPage());
             }
+            case MAIL_VIEW -> {
+                event.setCancelled(true);
+                mailManager.handleMailDetailClick(player, event, holder.getPage(), Integer.parseInt(holder.getContext()));
+            }
+            case NOTES -> {
+                event.setCancelled(true);
+                noteManager.handleClick(player, event.getRawSlot());
+            }
             case TRADE_PLAYERS -> {
                 event.setCancelled(true);
                 tradeManager.handlePlayerListClick(player, event.getRawSlot());
@@ -142,6 +153,12 @@ public class InteractionListener implements Listener {
         if (holder.getType() == MenuType.MAIL_COMPOSE) {
             mailManager.handleComposeClose(player);
         }
+        if (holder.getType() == MenuType.MAIL_VIEW) {
+            mailManager.handleMailDetailClose(player, Integer.parseInt(holder.getContext()), event.getInventory());
+        }
+        if (holder.getType() == MenuType.NOTES) {
+            noteManager.captureBookMessage(player);
+        }
     }
 
     @EventHandler
@@ -155,6 +172,9 @@ public class InteractionListener implements Listener {
 
     @EventHandler
     public void onBookEdit(PlayerEditBookEvent event) {
+        if (noteManager.handleBookEdit(event)) {
+            return;
+        }
         mailManager.handleBookEdit(event);
     }
 
@@ -188,6 +208,7 @@ public class InteractionListener implements Listener {
         Player player = event.getPlayer();
         player.discoverRecipe(HandelsblattItem.createRecipe(plugin).getKey());
         marketplaceSidebarManager.refresh(player);
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> mailManager.sendUnreadReminder(player), 40L);
     }
 
     @EventHandler

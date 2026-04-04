@@ -11,7 +11,7 @@ public class MailEntry {
     private final UUID senderId;
     private final String senderName;
     private final String message;
-    private final double coins;
+    private double coins;
     private final long createdAt;
     private final List<ItemStack> items = new ArrayList<>();
 
@@ -42,6 +42,10 @@ public class MailEntry {
 
     public double getCoins() {
         return coins;
+    }
+
+    public void setCoins(double coins) {
+        this.coins = coins;
     }
 
     public long getCreatedAt() {
