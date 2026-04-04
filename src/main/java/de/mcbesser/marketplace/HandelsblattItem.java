@@ -25,7 +25,7 @@ public final class HandelsblattItem {
                 "\u00A77Rechtsklick \u00f6ffnet den Handel",
                 "\u00A77Enth\u00e4lt Markt, Jobs, Lotto,",
                 "\u00A77Auktion und Direkthandel",
-                "\u00A7eMittlere Maustaste auf Spieler:",
+                "\u00A7eLinksklick auf Spieler:",
                 "\u00A7eHandelsanfrage senden/annehmen"
         ));
         meta.getPersistentDataContainer().set(key(plugin), PersistentDataType.STRING, MARKER);

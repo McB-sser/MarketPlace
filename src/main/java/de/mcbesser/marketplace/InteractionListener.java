@@ -12,7 +12,7 @@ import de.mcbesser.marketplace.sidebar.MarketplaceSidebarManager;
 import de.mcbesser.marketplace.storage.ClaimStorage;
 import de.mcbesser.marketplace.trade.TradeManager;
 import io.papermc.paper.event.player.AsyncChatEvent;
-import io.papermc.paper.event.player.PlayerPickItemEvent;
+import io.papermc.paper.event.player.PrePlayerAttackEntityEvent;
 import io.papermc.paper.event.player.PlayerStopUsingItemEvent;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.entity.Player;
@@ -192,12 +192,12 @@ public class InteractionListener implements Listener {
     }
 
     @EventHandler
-    public void onPickItem(PlayerPickItemEvent event) {
+    public void onPreAttackEntity(PrePlayerAttackEntityEvent event) {
         Player player = event.getPlayer();
         if (!HandelsblattItem.isHandelsblatt(plugin, player.getInventory().getItemInMainHand())) {
             return;
         }
-        if (!(player.getTargetEntity(8) instanceof Player target)) {
+        if (!(event.getAttacked() instanceof Player target)) {
             return;
         }
         event.setCancelled(true);

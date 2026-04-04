@@ -28,8 +28,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 public class TradeManager {
 
-    private static final int[] OWN_TRADE_SLOTS = {0, 1, 2, 3, 9, 10, 11, 12, 18, 19, 20, 21};
-    private static final int[] FOREIGN_TRADE_SLOTS = {5, 6, 7, 8, 14, 15, 16, 17, 23, 24, 25, 26};
+    private static final int[] OWN_TRADE_SLOTS = {0, 1, 2, 3, 9, 10, 11, 12, 18, 19, 20, 21, 27, 28, 29, 30};
+    private static final int[] FOREIGN_TRADE_SLOTS = {5, 6, 7, 8, 14, 15, 16, 17, 23, 24, 25, 26, 32, 33, 34, 35};
     private static final int[] BUTTON_SLOTS = {45, 46, 47, 48, 49, 50, 51, 52, 53};
     private static final int TOP_OFFER_SLOT = 4;
 
@@ -138,7 +138,11 @@ public class TradeManager {
         inventory.setItem(46, GuiItems.button(Material.PLAYER_HEAD, "\u00A7eSpielerliste", List.of("\u00A77Weitere Anfragen und Partner anzeigen")));
         inventory.setItem(47, GuiItems.button(Material.GOLD_NUGGET, "\u00A76CT +/-1", List.of("\u00A77Linksklick: +1", "\u00A77Rechtsklick: -1")));
         inventory.setItem(48, GuiItems.button(Material.GOLD_INGOT, "\u00A76CT +/-10", List.of("\u00A77Linksklick: +10", "\u00A77Rechtsklick: -10")));
-        inventory.setItem(49, GuiItems.button(Material.GOLD_BLOCK, "\u00A76CT +/-100", List.of("\u00A77Linksklick: +100", "\u00A77Rechtsklick: -100")));
+        inventory.setItem(49, GuiItems.button(Material.GOLD_BLOCK, "\u00A76CT +/-100", List.of(
+                "\u00A77Linksklick: +100",
+                "\u00A77Rechtsklick: -100",
+                "\u00A77Shift-Linksklick: +1000",
+                "\u00A77Shift-Rechtsklick: -1000")));
         inventory.setItem(50, GuiItems.button(Material.BARREL, "\u00A7eAbholfach", List.of("\u00A77Handelsgewinne und R\u00fcckgaben")));
         inventory.setItem(52, GuiItems.button(Material.EMERALD_BLOCK, "\u00A7aBest\u00e4tigen", List.of(statusLine(session, first), "\u00A77Beide Seiten m\u00fcssen best\u00e4tigen")));
         inventory.setItem(53, GuiItems.button(Material.REDSTONE_BLOCK, "\u00A7cAbbrechen", List.of("\u00A77Handel beenden")));
@@ -176,7 +180,7 @@ public class TradeManager {
             }
             case 47 -> changeCoins(player, session, resolveCoinDelta(event, 1));
             case 48 -> changeCoins(player, session, resolveCoinDelta(event, 10));
-            case 49 -> changeCoins(player, session, resolveCoinDelta(event, 100));
+            case 49 -> changeCoins(player, session, resolveCoinDelta(event, 100, 1000));
             case 50 -> {
                 claimStorage.openClaims(player, 0, ClaimStorage.CONTEXT_TRADE);
                 return;
@@ -468,11 +472,17 @@ public class TradeManager {
     }
 
     private double resolveCoinDelta(InventoryClickEvent event, int step) {
+        return resolveCoinDelta(event, step, step);
+    }
+
+    private double resolveCoinDelta(InventoryClickEvent event, int step, int shiftStep) {
+        boolean shift = event.getClick().isShiftClick();
+        int amount = shift ? shiftStep : step;
         if (event.getClick().isLeftClick()) {
-            return step;
+            return amount;
         }
         if (event.getClick().isRightClick()) {
-            return -step;
+            return -amount;
         }
         return 0;
     }
