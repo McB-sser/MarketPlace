@@ -305,9 +305,11 @@ public class MailManager {
             case 22 -> openReadableMail(player, page, entry);
             case 49 -> {
                 syncMailDetailFromView(entry, event.getView().getTopInventory());
-                deleteEntry(player.getUniqueId(), entryId);
                 claimMail(player, entry);
-                openInbox(player, page);
+                entry.getItems().clear();
+                entry.setCoins(0);
+                save();
+                openMailDetail(player, page, entryId);
             }
             case 53 -> {
                 syncMailDetailFromView(entry, event.getView().getTopInventory());
