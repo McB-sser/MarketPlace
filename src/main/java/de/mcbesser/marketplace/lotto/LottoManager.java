@@ -11,6 +11,7 @@ import de.mcbesser.marketplace.pricing.PriceGuideManager;
 import de.mcbesser.marketplace.storage.ClaimStorage;
 import de.mcbesser.marketplace.util.CurrencyFormatter;
 import de.mcbesser.marketplace.util.GermanItemNames;
+import de.mcbesser.marketplace.util.MessageUtil;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -154,14 +155,14 @@ public class LottoManager {
             double ticketPrice = Math.max(1, Math.floor(listing.getPrice() / 10D));
             currentRound = new LottoRound(listing.getId(), listing.getSellerId(), listing.getItem().clone(),
                     listing.getPrice(), ticketPrice, nextDrawTimestamp());
-            Bukkit.broadcastMessage("[Lotto] Tageslotto gestartet: " + readableName(listing.getItem())
+            MessageUtil.broadcast(plugin.getServer(), "Lotto: Tageslotto gestartet: " + readableName(listing.getItem())
                     + " | Ticket: " + CurrencyFormatter.shortAmount(ticketPrice) + ".");
         } else {
             double basePot = plugin.getConfig().getDouble("lotto.base-pot", 250);
             double ticketPrice = plugin.getConfig().getDouble("lotto.ticket-price", 25);
             currentRound = new LottoRound(-1, null, null, basePot, ticketPrice, nextDrawTimestamp());
-            Bukkit.broadcastMessage("[Lotto] Tageslotto gestartet mit Basis-Pot von " + CurrencyFormatter.shortAmount(basePot)
-                    + ". Keine gueltigen Item-Gewinne verfuegbar.");
+            MessageUtil.broadcast(plugin.getServer(), "Lotto: Tageslotto gestartet mit Basis-Pot von " + CurrencyFormatter.shortAmount(basePot)
+                    + ". Keine g\u00fcltigen Item-Gewinne verf\u00fcgbar.");
         }
         save();
     }
@@ -193,11 +194,11 @@ public class LottoManager {
     private void buyTickets(Player player, int amount) {
         double totalPrice = currentRound.getTicketPrice() * amount;
         if (!economyService.withdraw(player.getUniqueId(), totalPrice)) {
-            player.sendMessage("Nicht genug CraftTaler fuer Lotto-Tickets.");
+            MessageUtil.send(player, "Nicht genug CraftTaler f\u00fcr Lotto-Tickets.");
             return;
         }
         currentRound.getTickets().merge(player.getUniqueId(), amount, Integer::sum);
-        player.sendMessage("Du hast " + amount + " Lotto-Tickets gekauft.");
+        MessageUtil.send(player, "Du hast " + amount + " Lotto-Tickets gekauft.");
         save();
     }
 
@@ -210,7 +211,7 @@ public class LottoManager {
                 claimStorage.addClaim(round.getSellerId(), round.getItem(), "Lotto R\u00fcckgabe", round.getItemPrice(),
                         "Zu wenige Teilnehmer f\u00fcr die Tagesziehung");
             }
-            Bukkit.broadcastMessage("[Lotto] Ziehung ausgefallen. Es werden mindestens 2 Teilnehmer ben\u00f6tigt.");
+            MessageUtil.broadcast(plugin.getServer(), "Lotto: Ziehung ausgefallen. Es werden mindestens 2 Teilnehmer ben\u00f6tigt.");
             save();
             return;
         }
@@ -225,13 +226,13 @@ public class LottoManager {
                 claimStorage.addClaim(winnerId, round.getItem(), "Lotto Gewinn", round.getItemPrice(), "Gewonnen im Lotto");
             }
             String winnerName = winner == null ? plugin.getServer().getOfflinePlayer(winnerId).getName() : winner.getName();
-            Bukkit.broadcastMessage("[Lotto] " + winnerName + " gewinnt " + readableName(round.getItem())
-                    + ". Verkaeufer erhaelt " + CurrencyFormatter.shortAmount(ticketPot) + ".");
+            MessageUtil.broadcast(plugin.getServer(), "Lotto: " + winnerName + " gewinnt " + readableName(round.getItem())
+                    + ". Verk\u00e4ufer erh\u00e4lt " + CurrencyFormatter.shortAmount(ticketPot) + ".");
         } else {
             int payout = (int) (round.getItemPrice() + ticketPot);
             economyService.deposit(winnerId, payout);
             String winnerName = plugin.getServer().getOfflinePlayer(winnerId).getName();
-            Bukkit.broadcastMessage("[Lotto] " + winnerName + " gewinnt den Basis-Pot von " + CurrencyFormatter.shortAmount(payout) + ".");
+            MessageUtil.broadcast(plugin.getServer(), "Lotto: " + winnerName + " gewinnt den Basis-Pot von " + CurrencyFormatter.shortAmount(payout) + ".");
         }
         save();
     }

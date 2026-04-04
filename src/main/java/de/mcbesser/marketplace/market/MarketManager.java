@@ -8,6 +8,7 @@ import de.mcbesser.marketplace.gui.MenuType;
 import de.mcbesser.marketplace.pricing.PriceGuideManager;
 import de.mcbesser.marketplace.storage.ClaimStorage;
 import de.mcbesser.marketplace.util.CurrencyFormatter;
+import de.mcbesser.marketplace.util.MessageUtil;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
@@ -83,8 +84,8 @@ public class MarketManager {
         }
         inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zum Hauptmen\u00fc")));
         inventory.setItem(46, GuiItems.button(Material.ARROW, "&eZur\u00fcck", List.of("&7Vorherige Seite")));
-        inventory.setItem(49, GuiItems.button(Material.COMPASS, "&aHauptmenue", List.of("&7Zur Markt\u00fcbersicht")));
-        inventory.setItem(53, GuiItems.button(Material.ARROW, "&eWeiter", List.of("&7Naechste Seite")));
+        inventory.setItem(49, GuiItems.button(Material.COMPASS, "&aHauptmen\u00fc", List.of("&7Zur Markt\u00fcbersicht")));
+        inventory.setItem(53, GuiItems.button(Material.ARROW, "&eWeiter", List.of("&7N\u00e4chste Seite")));
         player.openInventory(inventory);
     }
 
@@ -303,12 +304,12 @@ public class MarketManager {
     private void createListing(Player player, double price) {
         ItemStack listed = pendingSellItem.remove(player.getUniqueId());
         if (listed == null || listed.getType().isAir()) {
-            player.sendMessage("Lege zuerst ein Verkaufsitem in den vorgesehenen Slot.");
+            MessageUtil.send(player, "Lege zuerst ein Verkaufsitem in den vorgesehenen Slot.");
             return;
         }
         if (!priceGuideManager.isPriceAllowed(listed, price)) {
             pendingSellItem.put(player.getUniqueId(), listed);
-            player.sendMessage("Preis ausserhalb des erlaubten Bereichs: " + priceGuideManager.allowedRangeText(listed));
+            MessageUtil.send(player, "Preis ausserhalb des erlaubten Bereichs: " + priceGuideManager.allowedRangeText(listed));
             return;
         }
         MarketListing listing = new MarketListing(nextId.getAndIncrement(), player.getUniqueId(), listed.clone(), price,
@@ -316,17 +317,17 @@ public class MarketManager {
         listings.add(listing);
         priceGuideManager.registerObservation(listed, price);
         save();
-        player.sendMessage("Marktangebot #" + listing.getId() + " fuer " + CurrencyFormatter.shortAmount(price) + " erstellt.");
+        MessageUtil.send(player, "Marktangebot #" + listing.getId() + " f\u00fcr " + CurrencyFormatter.shortAmount(price) + " erstellt.");
     }
 
     private void buyListing(Player player, int listingId) {
         MarketListing listing = listings.stream().filter(entry -> entry.getId() == listingId).findFirst().orElse(null);
         if (listing == null) {
-            player.sendMessage("Angebot nicht gefunden.");
+            MessageUtil.send(player, "Angebot nicht gefunden.");
             return;
         }
         if (!economyService.withdraw(player.getUniqueId(), listing.getPrice())) {
-            player.sendMessage("Nicht genug CraftTaler.");
+            MessageUtil.send(player, "Nicht genug CraftTaler.");
             return;
         }
         economyService.deposit(listing.getSellerId(), listing.getPrice());
@@ -337,7 +338,7 @@ public class MarketManager {
         }
         listings.remove(listing);
         save();
-        player.sendMessage("Angebot gekauft.");
+        MessageUtil.send(player, "Angebot gekauft.");
     }
 
     private ItemStack createListingDisplay(MarketListing listing) {

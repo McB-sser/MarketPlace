@@ -9,6 +9,7 @@ import de.mcbesser.marketplace.gui.MenuType;
 import de.mcbesser.marketplace.storage.ClaimStorage;
 import de.mcbesser.marketplace.util.CurrencyFormatter;
 import de.mcbesser.marketplace.util.GermanItemNames;
+import de.mcbesser.marketplace.util.MessageUtil;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
@@ -76,10 +77,10 @@ public class JobManager {
         }
 
         inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zum Hauptmen\u00fc")));
-        inventory.setItem(46, GuiItems.button(Material.ARROW, "&eZurueck", List.of("&7Vorherige Seite")));
+        inventory.setItem(46, GuiItems.button(Material.ARROW, "&eZur\u00fcck", List.of("&7Vorherige Seite")));
         inventory.setItem(49, GuiItems.button(Material.WRITABLE_BOOK, "&aSpieler-Job erstellen",
                 List.of("&7Materialliste und Belohnung festlegen", "&7Belohnung wird direkt reserviert")));
-        inventory.setItem(53, GuiItems.button(Material.ARROW, "&eWeiter", List.of("&7Naechste Seite")));
+        inventory.setItem(53, GuiItems.button(Material.ARROW, "&eWeiter", List.of("&7N\u00e4chste Seite")));
         player.openInventory(inventory);
     }
 
@@ -204,7 +205,7 @@ public class JobManager {
     public void openStorage(Player player, String instanceId) {
         PlayerJob job = findPersonalJob(player.getUniqueId(), instanceId);
         if (job == null) {
-            player.sendMessage("Job nicht gefunden.");
+            MessageUtil.send(player, "Job nicht gefunden.");
             return;
         }
         Inventory inventory = Bukkit.createInventory(new MenuHolder(MenuType.JOB_STORAGE, 0, instanceId), 27, "Job-Kiste");
@@ -219,7 +220,7 @@ public class JobManager {
         inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zum Hauptmen\u00fc")));
         inventory.setItem(22, GuiItems.button(Material.CHEST, "&eNur passende Job-Items", lore));
         inventory.setItem(24, GuiItems.button(Material.ARROW, "&eZur Jobliste", List.of("&7Zur\u00fcck ohne Abgabe")));
-        inventory.setItem(26, GuiItems.button(Material.EMERALD, "&aAbgeben", List.of("&7Lagervorrat und Inventar pruefen")));
+        inventory.setItem(26, GuiItems.button(Material.EMERALD, "&aAbgeben", List.of("&7Lagervorrat und Inventar pr\u00fcfen")));
         player.openInventory(inventory);
     }
 
@@ -281,7 +282,7 @@ public class JobManager {
                 economyService.deposit(job.getCreatorId(), job.getRewardOverride());
                 Player creator = Bukkit.getPlayer(job.getCreatorId());
                 if (creator != null) {
-                    creator.sendMessage("Dein Spieler-Job " + nameFor(job) + " ist abgelaufen. Budget zurueckerstattet.");
+                    MessageUtil.send(creator, "Dein Spieler-Job " + nameFor(job) + " ist abgelaufen. Budget wurde zur\u00fcckerstattet.");
                 }
             }
             clearPinned(job.getInstanceId());
@@ -436,7 +437,7 @@ public class JobManager {
 
     private void handleCustomJobClick(Player player, PlayerJob job, ClickType clickType, int page) {
         if (clickType.isShiftClick()) {
-            player.sendMessage("Spieler-Jobs haben keine Job-Kiste.");
+            MessageUtil.send(player, "Spieler-Jobs haben keine Job-Kiste.");
             return;
         }
         if (clickType.isRightClick()) {
@@ -451,10 +452,10 @@ public class JobManager {
     private void togglePinned(Player player, PlayerJobProfile profile, PlayerJob job) {
         if (job.getInstanceId().equals(profile.getPinnedJobInstanceId())) {
             profile.setPinnedJobInstanceId(null);
-            player.sendMessage("Job geloest.");
+            MessageUtil.send(player, "Job gel\u00f6st.");
         } else {
             profile.setPinnedJobInstanceId(job.getInstanceId());
-            player.sendMessage("Job angepinnt.");
+            MessageUtil.send(player, "Job angepinnt.");
         }
         save();
     }
@@ -469,7 +470,7 @@ public class JobManager {
             JobCreateState.JobDraftItem draftItem = state.getItems().get(i);
             List<String> lore = new ArrayList<>();
             lore.add("&7Menge: &f" + draftItem.amount());
-            lore.add("&7Klick zum Auswaehlen");
+            lore.add("&7Klick zum Ausw\u00e4hlen");
             lore.add(i == state.getSelectedIndex() ? "&aAktiv" : "&7Nicht aktiv");
             inventory.setItem(JOB_CREATE_ITEM_SLOTS[i], GuiItems.button(draftItem.material(), "&a" + displayName(draftItem.material()), lore));
         }
@@ -477,8 +478,8 @@ public class JobManager {
         JobCreateState.JobDraftItem selected = state.ensureSelected();
         double suggestedReward = suggestedReward(player, state);
         inventory.setItem(22, selected == null
-                ? GuiItems.button(Material.BOOK, "&eMaterialliste", List.of("&7Lege zuerst ein Item auf das grune Board"))
-                : GuiItems.button(selected.material(), "&eAusgewaehlt: " + displayName(selected.material()),
+                ? GuiItems.button(Material.BOOK, "&eMaterialliste", List.of("&7Lege zuerst ein Item auf das gr\u00fcne Board"))
+                : GuiItems.button(selected.material(), "&eAusgew\u00e4hlt: " + displayName(selected.material()),
                 List.of("&7Menge: &f" + selected.amount(), "&7Links +1 | Rechts -1")));
         inventory.setItem(23, GuiItems.button(Material.PAPER, "&eMarktpreis",
                 List.of("&7Vorschlag: " + CurrencyFormatter.shortAmount(suggestedReward),
@@ -498,16 +499,16 @@ public class JobManager {
         inventory.setItem(35, stepButton("+10000"));
 
         inventory.setItem(44, GuiItems.button(Material.EMERALD_BLOCK, "&aJob erstellen",
-                List.of("&7Sichtbar fuer alle Spieler", "&7Belohnung: " + CurrencyFormatter.shortAmount(state.getReward()),
+                List.of("&7Sichtbar f\u00fcr alle Spieler", "&7Belohnung: " + CurrencyFormatter.shortAmount(state.getReward()),
                         "&7Budget wird sofort abgezogen")));
         inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zum Hauptmen\u00fc")));
-        inventory.setItem(46, GuiItems.button(Material.ARROW, "&eZurueck", List.of("&7Zur Jobliste")));
+        inventory.setItem(46, GuiItems.button(Material.ARROW, "&eZur\u00fcck", List.of("&7Zur Jobliste")));
         inventory.setItem(47, stepButton("-1000 CT"));
         inventory.setItem(48, stepButton("-100 CT"));
         inventory.setItem(49, stepButton("-10 CT"));
         inventory.setItem(50, GuiItems.button(Material.SUNFLOWER, "&6Budget: " + CurrencyFormatter.shortAmount(state.getReward()),
-                List.of("&7Links +1 | Rechts -1", "&7Shift-Klick: Marktpreis uebernehmen",
-                        "&7Maximal verfuegbar: " + CurrencyFormatter.shortAmount(economyService.getBalance(player.getUniqueId())))));
+                List.of("&7Links +1 | Rechts -1", "&7Shift-Klick: Marktpreis \u00fcbernehmen",
+                        "&7Maximal verf\u00fcgbar: " + CurrencyFormatter.shortAmount(economyService.getBalance(player.getUniqueId())))));
         inventory.setItem(51, stepButton("+10 CT"));
         inventory.setItem(52, stepButton("+100 CT"));
         inventory.setItem(53, stepButton("+1000 CT"));
@@ -525,11 +526,11 @@ public class JobManager {
         if (job.isCustom()) {
             lore.add("\u00A77Ersteller: \u00A7f" + job.getCreatorName());
             lore.add("\u00A7aLinksklick: aus Inventar abgeben");
-            lore.add("\u00A7eRechtsklick: anpinnen/loesen");
+            lore.add("\u00A7eRechtsklick: anpinnen/l\u00f6sen");
         } else {
             lore.add("\u00A7aLinksklick: aus Inventar/Kiste abgeben");
-            lore.add("\u00A7eRechtsklick: anpinnen/loesen");
-            lore.add("\u00A7bShift-Klick: Job-Kiste oeffnen");
+            lore.add("\u00A7eRechtsklick: anpinnen/l\u00f6sen");
+            lore.add("\u00A7bShift-Klick: Job-Kiste \u00f6ffnen");
         }
         if (job.getInstanceId().equals(getProfile(player.getUniqueId()).getPinnedJobInstanceId())) {
             lore.add("\u00A76Aktuell angepinnt");
@@ -642,12 +643,12 @@ public class JobManager {
 
     private void createPublicJob(Player player, JobCreateState state) {
         if (state.getItems().isEmpty()) {
-            player.sendMessage("Lege mindestens ein Material fuer den Job fest.");
+            MessageUtil.send(player, "Lege mindestens ein Material f\u00fcr den Job fest.");
             return;
         }
         double reward = Math.max(1, state.getReward());
         if (economyService.getBalance(player.getUniqueId()) < reward || !economyService.withdraw(player.getUniqueId(), reward)) {
-            player.sendMessage("Du hast nicht genug CraftTaler fuer dieses Budget.");
+            MessageUtil.send(player, "Du hast nicht genug CraftTaler f\u00fcr dieses Budget.");
             renderCreateMenu(player, state);
             return;
         }
@@ -663,27 +664,27 @@ public class JobManager {
 
         createStates.put(player.getUniqueId(),
                 new JobCreateState(defaultRewardFor(player, null)));
-        player.sendMessage("Spieler-Job erstellt. " + CurrencyFormatter.shortAmount(reward) + " wurden reserviert.");
+        MessageUtil.send(player, "Spieler-Job erstellt. " + CurrencyFormatter.shortAmount(reward) + " wurden reserviert.");
         openJobs(player);
     }
 
     private void deliverPublicJob(Player player, PlayerJob job) {
         int deliveredAny = deliverMaterials(player, job, false);
         if (deliveredAny == 0) {
-            player.sendMessage("Keine passenden Items fuer diesen Job gefunden.");
+            MessageUtil.send(player, "Keine passenden Items f\u00fcr diesen Job gefunden.");
             return;
         }
         if (isCompleted(job)) {
             economyService.deposit(player.getUniqueId(), job.getRewardOverride());
             publicJobs.remove(job);
             clearPinned(job.getInstanceId());
-            player.sendMessage("Spieler-Job abgeschlossen. " + CurrencyFormatter.shortAmount(job.getRewardOverride()) + " erhalten.");
+            MessageUtil.send(player, "Spieler-Job abgeschlossen. " + CurrencyFormatter.shortAmount(job.getRewardOverride()) + " erhalten.");
             Player creator = Bukkit.getPlayer(job.getCreatorId());
             if (creator != null && !creator.getUniqueId().equals(player.getUniqueId())) {
-                creator.sendMessage("Dein Spieler-Job " + nameFor(job) + " wurde abgeschlossen.");
+                MessageUtil.send(creator, "Dein Spieler-Job " + nameFor(job) + " wurde abgeschlossen.");
             }
         } else {
-            player.sendMessage("Fortschritt aktualisiert.");
+            MessageUtil.send(player, "Fortschritt aktualisiert.");
         }
         save();
     }
@@ -691,7 +692,7 @@ public class JobManager {
     private void deliverFromInventoryAndStorage(Player player, PlayerJobProfile profile, PlayerJob job, boolean allowStorage) {
         int deliveredAny = deliverMaterials(player, job, allowStorage);
         if (deliveredAny == 0) {
-            player.sendMessage("Keine passenden Items fuer diesen Job gefunden.");
+            MessageUtil.send(player, "Keine passenden Items f\u00fcr diesen Job gefunden.");
             return;
         }
         if (isCompleted(job)) {
@@ -701,9 +702,9 @@ public class JobManager {
             JobDefinition definition = getDefinition(job.getDefinitionId());
             profile.getCooldowns().put(definition.id(), System.currentTimeMillis() + Duration.ofDays(1).toMillis());
             ensureJobs(player.getUniqueId());
-            player.sendMessage("Job abgeschlossen. " + CurrencyFormatter.shortAmount(rewardFor(job)) + " erhalten.");
+            MessageUtil.send(player, "Job abgeschlossen. " + CurrencyFormatter.shortAmount(rewardFor(job)) + " erhalten.");
         } else {
-            player.sendMessage("Fortschritt aktualisiert.");
+            MessageUtil.send(player, "Fortschritt aktualisiert.");
         }
         save();
     }
@@ -743,7 +744,7 @@ public class JobManager {
         }
         Map<Integer, ItemStack> rest = player.getInventory().addItem(item.clone());
         if (!rest.isEmpty()) {
-            player.sendMessage("Inventar voll.");
+            MessageUtil.send(player, "Inventar voll.");
             return;
         }
         event.getView().getTopInventory().setItem(event.getRawSlot(), null);
@@ -756,7 +757,7 @@ public class JobManager {
         }
         int allowed = remainingAllowed(job, clicked.getType());
         if (allowed <= 0) {
-            player.sendMessage("Dieses Item wird fuer den Job nicht mehr benoetigt.");
+            MessageUtil.send(player, "Dieses Item wird f\u00fcr den Job nicht mehr ben\u00f6tigt.");
             return;
         }
         int amount = Math.min(allowed, clicked.getAmount());
@@ -764,7 +765,7 @@ public class JobManager {
         transfer.setAmount(amount);
         int accepted = addToStorage(event.getView().getTopInventory(), transfer);
         if (accepted <= 0) {
-            player.sendMessage("Job-Kiste ist voll.");
+            MessageUtil.send(player, "Job-Kiste ist voll.");
             return;
         }
         if (clicked.getAmount() == accepted) {
@@ -902,7 +903,7 @@ public class JobManager {
 
     private void returnStoredItems(UUID playerId, PlayerJob job) {
         for (ItemStack item : job.getStoredItems()) {
-            claimStorage.addClaim(playerId, item, "Job-Kiste Rueckgabe", 0, "Job " + job.getInstanceId() + " ist abgelaufen");
+            claimStorage.addClaim(playerId, item, "Job-Kiste R\u00fcckgabe", 0, "Job " + job.getInstanceId() + " ist abgelaufen");
         }
         job.getStoredItems().clear();
     }
@@ -974,7 +975,7 @@ public class JobManager {
                 new JobDefinition.JobRequirement(Material.WHITE_WOOL, 96),
                 new JobDefinition.JobRequirement(Material.BEEF, 64)
         ), 24, 300, 1440));
-        list.add(new JobDefinition("sweet_stock", "Suesser Vorrat", List.of(
+        list.add(new JobDefinition("sweet_stock", "S\u00fc\u00dfer Vorrat", List.of(
                 new JobDefinition.JobRequirement(Material.HONEY_BOTTLE, 24),
                 new JobDefinition.JobRequirement(Material.SUGAR_CANE, 192)
         ), 20, 240, 1440));

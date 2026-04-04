@@ -8,6 +8,7 @@ import de.mcbesser.marketplace.gui.MenuType;
 import de.mcbesser.marketplace.storage.ClaimStorage;
 import de.mcbesser.marketplace.util.CurrencyFormatter;
 import de.mcbesser.marketplace.util.GermanItemNames;
+import de.mcbesser.marketplace.util.MessageUtil;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
@@ -68,7 +69,7 @@ public class AuctionManager {
                 List.of("&7Startpreis: " + CurrencyFormatter.shortAmount(startPrice), "&7Dauer: " + seconds + " Sekunden", "&7Gebote laufen im Chat")));
         inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zur\u00fcck zum Hauptmen\u00fc")));
         inventory.setItem(22, activeAuctionDisplay());
-        inventory.setItem(26, GuiItems.button(Material.BARREL, "&eAbholfach", List.of("&7Auktionsrueckgaben und Gewinne")));
+        inventory.setItem(26, GuiItems.button(Material.BARREL, "&eAbholfach", List.of("&7Auktionsr\u00fcckgaben und Gewinne")));
         player.openInventory(inventory);
     }
 
@@ -123,22 +124,22 @@ public class AuctionManager {
             return false;
         }
         if (activeAuction.getSellerId().equals(player.getUniqueId())) {
-            player.sendMessage("Du kannst nicht auf deine eigene Auktion bieten.");
+            MessageUtil.send(player, "Du kannst nicht auf deine eigene Auktion bieten.");
             return true;
         }
         double bid = Double.parseDouble(message);
         if (bid <= activeAuction.getCurrentPrice()) {
-            player.sendMessage("Dein Gebot muss ueber " + CurrencyFormatter.shortAmount(activeAuction.getCurrentPrice()) + " liegen.");
+            MessageUtil.send(player, "Dein Gebot muss \u00fcber " + CurrencyFormatter.shortAmount(activeAuction.getCurrentPrice()) + " liegen.");
             return true;
         }
         if (economyService.getBalance(player.getUniqueId()) < bid) {
-            player.sendMessage("Nicht genug CraftTaler fuer dieses Gebot.");
+            MessageUtil.send(player, "Nicht genug CraftTaler f\u00fcr dieses Gebot.");
             return true;
         }
         activeAuction.setCurrentPrice(bid);
         activeAuction.setHighestBidderId(player.getUniqueId());
         activeAuction.setHighestBidderName(player.getName());
-        Bukkit.broadcastMessage("[Auktion] " + player.getName() + " bietet " + CurrencyFormatter.shortAmount(bid) + " auf "
+        MessageUtil.broadcast(plugin.getServer(), "Auktion: " + player.getName() + " bietet " + CurrencyFormatter.shortAmount(bid) + " auf "
                 + readableName(activeAuction.getItem()) + ".");
         save();
         return true;
@@ -248,19 +249,19 @@ public class AuctionManager {
 
     private void startAuction(Player player) {
         if (activeAuction != null) {
-            player.sendMessage("Es laeuft bereits eine Auktion.");
+            MessageUtil.send(player, "Es l\u00e4uft bereits eine Auktion.");
             return;
         }
         ItemStack pending = pendingAuctionItem.remove(player.getUniqueId());
         if (pending == null || pending.getType().isAir()) {
-            player.sendMessage("Lege zuerst ein Auktionsitem in den vorgesehenen Slot.");
+            MessageUtil.send(player, "Lege zuerst ein Auktionsitem in den vorgesehenen Slot.");
             return;
         }
         double startPrice = setupPrice.getOrDefault(player.getUniqueId(), 100.0D);
         int seconds = setupDuration.getOrDefault(player.getUniqueId(), 60);
         activeAuction = new AuctionState(player.getUniqueId(), player.getName(), pending.clone(),
                 System.currentTimeMillis() + Duration.ofSeconds(seconds).toMillis(), startPrice);
-        Bukkit.broadcastMessage("[Auktion] " + player.getName() + " versteigert " + readableName(pending)
+        MessageUtil.broadcast(plugin.getServer(), "Auktion: " + player.getName() + " versteigert " + readableName(pending)
                 + " ab " + CurrencyFormatter.shortAmount(startPrice) + ". Gebote einfach als Zahl in den Chat schreiben.");
         save();
     }
@@ -271,14 +272,14 @@ public class AuctionManager {
         if (auction.getHighestBidderId() == null) {
             claimStorage.addClaim(auction.getSellerId(), auction.getItem(), "Auktion unverkauft",
                     auction.getCurrentPrice(), "Nicht ersteigert");
-            Bukkit.broadcastMessage("[Auktion] Kein Gebot. Item geht ins Abholfach von " + auction.getSellerName() + ".");
+            MessageUtil.broadcast(plugin.getServer(), "Auktion: Kein Gebot. Item geht ins Abholfach von " + auction.getSellerName() + ".");
             save();
             return;
         }
         if (!economyService.withdraw(auction.getHighestBidderId(), auction.getCurrentPrice())) {
             claimStorage.addClaim(auction.getSellerId(), auction.getItem(), "Auktion fehlgeschlagen",
-                    auction.getCurrentPrice(), "Hoechstbietender hatte nicht genug CraftTaler");
-            Bukkit.broadcastMessage("[Auktion] Gebot konnte nicht eingezogen werden. Item geht zurueck an "
+                    auction.getCurrentPrice(), "H\u00f6chstbietender hatte nicht genug CraftTaler");
+            MessageUtil.broadcast(plugin.getServer(), "Auktion: Gebot konnte nicht eingezogen werden. Item geht zur\u00fcck an "
                     + auction.getSellerName() + ".");
             save();
             return;
@@ -295,7 +296,7 @@ public class AuctionManager {
                         auction.getCurrentPrice(), "Inventar war voll");
             }
         }
-        Bukkit.broadcastMessage("[Auktion] " + auction.getHighestBidderName() + " gewinnt f\u00fcr "
+        MessageUtil.broadcast(plugin.getServer(), "Auktion: " + auction.getHighestBidderName() + " gewinnt f\u00fcr "
                 + CurrencyFormatter.shortAmount(auction.getCurrentPrice()) + ".");
         save();
     }

@@ -1,6 +1,7 @@
 package de.mcbesser.marketplace;
 
 import de.mcbesser.marketplace.jobs.JobManager;
+import de.mcbesser.marketplace.util.MessageUtil;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -17,7 +18,7 @@ public class JobsCommand implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("Nur Spieler k\u00f6nnen diesen Befehl nutzen.");
+            MessageUtil.send(sender, "Nur Spieler k\u00f6nnen diesen Befehl nutzen.");
             return true;
         }
         jobManager.openJobs(player);

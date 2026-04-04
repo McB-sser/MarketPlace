@@ -21,9 +21,12 @@ public final class HandelsblattItem {
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName("\u00A76Handelsblatt");
         meta.setLore(List.of(
+                "\u00A76Marketplace",
                 "\u00A77Rechtsklick \u00f6ffnet den Handel",
                 "\u00A77Enth\u00e4lt Markt, Jobs, Lotto,",
-                "\u00A77Auktion und Direkthandel"
+                "\u00A77Auktion und Direkthandel",
+                "\u00A7eMittlere Maustaste auf Spieler:",
+                "\u00A7eHandelsanfrage senden/annehmen"
         ));
         meta.getPersistentDataContainer().set(key(plugin), PersistentDataType.STRING, MARKER);
         item.setItemMeta(meta);

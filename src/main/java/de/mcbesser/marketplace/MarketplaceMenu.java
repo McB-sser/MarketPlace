@@ -6,6 +6,7 @@ import de.mcbesser.marketplace.gui.MenuHolder;
 import de.mcbesser.marketplace.gui.MenuType;
 import de.mcbesser.marketplace.jobs.JobManager;
 import de.mcbesser.marketplace.lotto.LottoManager;
+import de.mcbesser.marketplace.mail.MailManager;
 import de.mcbesser.marketplace.market.MarketManager;
 import de.mcbesser.marketplace.storage.ClaimStorage;
 import de.mcbesser.marketplace.trade.TradeManager;
@@ -20,15 +21,17 @@ public class MarketplaceMenu {
     private final JobManager jobManager;
     private final MarketManager marketManager;
     private final LottoManager lottoManager;
+    private final MailManager mailManager;
     private final TradeManager tradeManager;
     private final AuctionManager auctionManager;
     private final ClaimStorage claimStorage;
 
-    public MarketplaceMenu(JobManager jobManager, MarketManager marketManager, LottoManager lottoManager, TradeManager tradeManager,
+    public MarketplaceMenu(JobManager jobManager, MarketManager marketManager, LottoManager lottoManager, MailManager mailManager, TradeManager tradeManager,
                       AuctionManager auctionManager, ClaimStorage claimStorage) {
         this.jobManager = jobManager;
         this.marketManager = marketManager;
         this.lottoManager = lottoManager;
+        this.mailManager = mailManager;
         this.tradeManager = tradeManager;
         this.auctionManager = auctionManager;
         this.claimStorage = claimStorage;
@@ -42,6 +45,7 @@ public class MarketplaceMenu {
         inventory.setItem(16, GuiItems.button(Material.GOLD_BLOCK, "&eAuktion", List.of("&7Live-Auktion im Chat")));
         inventory.setItem(20, GuiItems.button(Material.NETHER_STAR, "&6Lotto", List.of("&7Tickets kaufen und Item gewinnen")));
         inventory.setItem(22, GuiItems.button(Material.BARREL, "&dAbholfach", List.of("&7R\u00fcckgaben und Gewinne")));
+        inventory.setItem(24, GuiItems.button(Material.WRITABLE_BOOK, "&eSpieler-Mail", List.of("&7Items, Geld und Nachricht senden")));
         player.openInventory(inventory);
     }
 
@@ -53,6 +57,7 @@ public class MarketplaceMenu {
             case 16 -> auctionManager.openMain(player);
             case 20 -> lottoManager.openMain(player);
             case 22 -> claimStorage.openClaims(player, 0, ClaimStorage.CONTEXT_HUB);
+            case 24 -> mailManager.openPlayerList(player);
             default -> {
             }
         }

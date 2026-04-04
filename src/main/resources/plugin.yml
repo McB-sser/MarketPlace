@@ -5,21 +5,24 @@ api-version: "1.20"
 author: Codex
 commands:
   marketplace:
-    description: Oeffnet das Marketplace-Hauptmenue
+    description: \u00d6ffnet das Marketplace-Hauptmen\u00fc
     usage: /marketplace
     aliases: [mp]
   market:
-    description: Oeffnet den Markt
+    description: \u00d6ffnet den Markt
     usage: /market
   jobs:
-    description: Oeffnet die Job-Uebersicht
+    description: \u00d6ffnet die Job-\u00dcbersicht
     usage: /jobs
+  mail:
+    description: \u00d6ffnet Spieler-Mail
+    usage: /mail
   trade:
-    description: Oeffnet den Direkt-Handel
+    description: \u00d6ffnet den Direkt-Handel
     usage: /trade
   auction:
-    description: Oeffnet die Auktion
+    description: \u00d6ffnet die Auktion
     usage: /auction
   lotto:
-    description: Oeffnet das Lotto
+    description: \u00d6ffnet das Lotto
     usage: /lotto

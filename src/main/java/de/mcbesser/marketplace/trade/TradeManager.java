@@ -7,9 +7,11 @@ import de.mcbesser.marketplace.gui.MenuHolder;
 import de.mcbesser.marketplace.gui.MenuType;
 import de.mcbesser.marketplace.storage.ClaimStorage;
 import de.mcbesser.marketplace.util.CurrencyFormatter;
+import de.mcbesser.marketplace.util.MessageUtil;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -19,13 +21,17 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 public class TradeManager {
 
-    private static final int MAX_TRADE_ITEMS = 8;
+    private static final int[] OWN_TRADE_SLOTS = {0, 1, 2, 3, 9, 10, 11, 12, 18, 19, 20, 21};
+    private static final int[] FOREIGN_TRADE_SLOTS = {5, 6, 7, 8, 14, 15, 16, 17, 23, 24, 25, 26};
+    private static final int[] BUTTON_SLOTS = {45, 46, 47, 48, 49, 50, 51, 52, 53};
+    private static final int TOP_OFFER_SLOT = 4;
 
     private final MarketplacePlugin plugin;
     private final EconomyService economyService;
@@ -89,64 +95,94 @@ public class TradeManager {
         sendRequest(player, targets.get(rawSlot));
     }
 
+    public void handleHandelsblattQuickTrade(Player player, Player target) {
+        if (sessions.containsKey(player.getUniqueId())) {
+            openTradeView(player);
+            return;
+        }
+        UUID requesterId = pendingRequests.get(player.getUniqueId());
+        if (requesterId != null && requesterId.equals(target.getUniqueId())) {
+            acceptRequest(player);
+            return;
+        }
+        sendRequest(player, target);
+    }
+
     public void openTradeView(Player player) {
         TradeSession session = sessions.get(player.getUniqueId());
         if (session == null) {
-            player.sendMessage("Kein aktiver Handel.");
+            MessageUtil.send(player, "Kein aktiver Handel.");
             return;
         }
         boolean first = session.getFirstPlayer().equals(player.getUniqueId());
         Inventory inventory = Bukkit.createInventory(new MenuHolder(MenuType.TRADE_SESSION), 54, "Direkthandel");
         List<ItemStack> ownItems = first ? session.getFirstItems() : session.getSecondItems();
         List<ItemStack> otherItems = first ? session.getSecondItems() : session.getFirstItems();
-        for (int i = 0; i < Math.min(MAX_TRADE_ITEMS, ownItems.size()); i++) {
-            inventory.setItem(i, ownItems.get(i).clone());
+        for (int slot : ownTradeDecorationSlots()) {
+            inventory.setItem(slot, null);
         }
-        for (int i = 0; i < Math.min(MAX_TRADE_ITEMS, otherItems.size()); i++) {
-            inventory.setItem(9 + i, decorateForeign(otherItems.get(i)));
+        for (int i = 0; i < Math.min(OWN_TRADE_SLOTS.length, ownItems.size()); i++) {
+            inventory.setItem(OWN_TRADE_SLOTS[i], ownItems.get(i).clone());
         }
-        inventory.setItem(27, GuiItems.button(Material.HOPPER, "\u00A7aHand-Item hinzufuegen", List.of("\u00A77Nimmt das komplette Stack aus deiner Hand")));
-        inventory.setItem(28, GuiItems.button(Material.BARRIER, "\u00A7cLetztes eigenes Item entfernen", List.of("\u00A77Legt dein letztes Angebot zurueck")));
-        inventory.setItem(29, GuiItems.button(Material.PLAYER_HEAD, "\u00A7eSpielerliste", List.of("\u00A77Weitere Anfragen und Partner anzeigen")));
-        inventory.setItem(30, GuiItems.button(Material.GOLD_NUGGET, "\u00A76CT -10", List.of("\u00A77Verringert dein CraftTaler-Angebot")));
-        inventory.setItem(31, GuiItems.button(Material.GOLD_INGOT, "\u00A76CT +10", List.of("\u00A77Erhoeht dein CraftTaler-Angebot")));
-        inventory.setItem(32, GuiItems.button(Material.GOLD_BLOCK, "\u00A76CT +100", List.of("\u00A77Erhoeht dein CraftTaler-Angebot")));
-        inventory.setItem(34, GuiItems.button(Material.EMERALD_BLOCK, "\u00A7aBestaetigen", List.of(statusLine(session, first), "\u00A77Beide Seiten m\u00fcssen bestaetigen")));
-        inventory.setItem(35, GuiItems.button(Material.REDSTONE_BLOCK, "\u00A7cAbbrechen", List.of("\u00A77Handel beenden")));
-        inventory.setItem(40, GuiItems.button(Material.SUNFLOWER,
+        for (int i = 0; i < Math.min(FOREIGN_TRADE_SLOTS.length, otherItems.size()); i++) {
+            inventory.setItem(FOREIGN_TRADE_SLOTS[i], decorateForeign(otherItems.get(i)));
+        }
+        fillForeignEmptySlots(inventory, otherItems.size());
+        inventory.setItem(TOP_OFFER_SLOT, GuiItems.button(Material.SUNFLOWER,
                 "\u00A7eDein Angebot: " + CurrencyFormatter.shortAmount(first ? session.getFirstCoins() : session.getSecondCoins()),
-                List.of("\u00A77Gegenseite: " + CurrencyFormatter.shortAmount(first ? session.getSecondCoins() : session.getFirstCoins()))));
+                List.of("\u00A77Gegenseite: " + CurrencyFormatter.shortAmount(first ? session.getSecondCoins() : session.getFirstCoins()),
+                        statusLine(session, first),
+                        "\u00A77Links legst du Items aus deinem Inventar ab")));
+        fillTradeDecorations(inventory);
         inventory.setItem(45, GuiItems.button(Material.COMPASS, "\u00A7aMarketplace", List.of("\u00A77Hauptmen\u00fc \u00f6ffnen, Handel bleibt aktiv")));
-        inventory.setItem(49, GuiItems.button(Material.BARREL, "\u00A7eAbholfach", List.of("\u00A77Handelsgewinne und R\u00fcckgaben")));
+        inventory.setItem(46, GuiItems.button(Material.PLAYER_HEAD, "\u00A7eSpielerliste", List.of("\u00A77Weitere Anfragen und Partner anzeigen")));
+        inventory.setItem(47, GuiItems.button(Material.GOLD_NUGGET, "\u00A76CT +/-1", List.of("\u00A77Linksklick: +1", "\u00A77Rechtsklick: -1")));
+        inventory.setItem(48, GuiItems.button(Material.GOLD_INGOT, "\u00A76CT +/-10", List.of("\u00A77Linksklick: +10", "\u00A77Rechtsklick: -10")));
+        inventory.setItem(49, GuiItems.button(Material.GOLD_BLOCK, "\u00A76CT +/-100", List.of("\u00A77Linksklick: +100", "\u00A77Rechtsklick: -100")));
+        inventory.setItem(50, GuiItems.button(Material.BARREL, "\u00A7eAbholfach", List.of("\u00A77Handelsgewinne und R\u00fcckgaben")));
+        inventory.setItem(52, GuiItems.button(Material.EMERALD_BLOCK, "\u00A7aBest\u00e4tigen", List.of(statusLine(session, first), "\u00A77Beide Seiten m\u00fcssen best\u00e4tigen")));
+        inventory.setItem(53, GuiItems.button(Material.REDSTONE_BLOCK, "\u00A7cAbbrechen", List.of("\u00A77Handel beenden")));
         player.openInventory(inventory);
     }
 
-    public void handleTradeClick(Player player, int rawSlot) {
+    public void handleTradeClick(Player player, InventoryClickEvent event) {
         TradeSession session = sessions.get(player.getUniqueId());
         if (session == null) {
             player.closeInventory();
             return;
         }
+        int rawSlot = event.getRawSlot();
+        int topSize = event.getView().getTopInventory().getSize();
+        if (rawSlot < topSize && isOwnTradeSlot(rawSlot)) {
+            event.setCancelled(false);
+            scheduleTradeSync(player);
+            return;
+        }
+        if (rawSlot >= topSize) {
+            event.setCancelled(false);
+            scheduleTradeSync(player);
+            return;
+        }
+        event.setCancelled(true);
+        syncOwnOfferFromView(player, session, event.getView().getTopInventory());
         switch (rawSlot) {
-            case 27 -> addHandItem(player, session);
-            case 28 -> removeLastOwnItem(player, session);
-            case 29 -> {
-                openPlayerList(player);
-                return;
-            }
-            case 30 -> changeCoins(player, session, -10);
-            case 31 -> changeCoins(player, session, 10);
-            case 32 -> changeCoins(player, session, 100);
-            case 34 -> confirm(player, session);
-            case 35 -> cancel(player.getUniqueId(), true);
             case 45 -> {
                 player.performCommand("marketplace");
                 return;
             }
-            case 49 -> {
+            case 46 -> {
+                openPlayerList(player);
+                return;
+            }
+            case 47 -> changeCoins(player, session, resolveCoinDelta(event, 1));
+            case 48 -> changeCoins(player, session, resolveCoinDelta(event, 10));
+            case 49 -> changeCoins(player, session, resolveCoinDelta(event, 100));
+            case 50 -> {
                 claimStorage.openClaims(player, 0, ClaimStorage.CONTEXT_TRADE);
                 return;
             }
+            case 52 -> confirm(player, session);
+            case 53 -> cancel(player.getUniqueId(), true);
             default -> {
                 return;
             }
@@ -183,12 +219,14 @@ public class TradeManager {
             return;
         }
         if (sessions.containsKey(target.getUniqueId())) {
-            player.sendMessage(target.getName() + " ist bereits in einem Handel.");
+            MessageUtil.send(player, target.getName() + " ist bereits in einem Handel.");
             return;
         }
         pendingRequests.put(target.getUniqueId(), player.getUniqueId());
-        player.sendMessage("Handelsanfrage an " + target.getName() + " gesendet.");
-        target.sendMessage(player.getName() + " m\u00f6chte mit dir handeln. Nutze /trade oder klick im Menue auf Annehmen.");
+        MessageUtil.send(player, "Handelsanfrage an " + target.getName() + " gesendet.");
+        MessageUtil.sendActions(target, player.getName() + " m\u00f6chte mit dir handeln.",
+                MessageUtil.action("Handel \u00f6ffnen", "trade"),
+                MessageUtil.action("Marketplace", "marketplace"));
     }
 
     private void acceptRequest(Player player) {
@@ -198,55 +236,25 @@ public class TradeManager {
         }
         UUID requesterId = pendingRequests.remove(player.getUniqueId());
         if (requesterId == null) {
-            player.sendMessage("Keine offene Anfrage.");
+            MessageUtil.send(player, "Keine offene Anfrage.");
             return;
         }
         Player requester = Bukkit.getPlayer(requesterId);
         if (requester == null) {
-            player.sendMessage("Anfragender Spieler ist offline.");
+            MessageUtil.send(player, "Anfragender Spieler ist offline.");
             return;
         }
         if (sessions.containsKey(requesterId)) {
-            player.sendMessage("Der anfragende Spieler handelt bereits anderweitig.");
+            MessageUtil.send(player, "Der anfragende Spieler handelt bereits anderweitig.");
             return;
         }
         TradeSession session = new TradeSession(requester.getUniqueId(), player.getUniqueId(), System.currentTimeMillis());
         sessions.put(requester.getUniqueId(), session);
         sessions.put(player.getUniqueId(), session);
-        requester.sendMessage(player.getName() + " hat die Handelsanfrage angenommen.");
-        player.sendMessage("Handel mit " + requester.getName() + " gestartet.");
+        MessageUtil.send(requester, player.getName() + " hat die Handelsanfrage angenommen.");
+        MessageUtil.send(player, "Handel mit " + requester.getName() + " gestartet.");
         openTradeView(requester);
         openTradeView(player);
-    }
-
-    private void addHandItem(Player player, TradeSession session) {
-        ItemStack held = player.getInventory().getItemInMainHand();
-        if (held.getType().isAir()) {
-            player.sendMessage("Halte ein Item in der Hand.");
-            return;
-        }
-        List<ItemStack> ownItems = session.getFirstPlayer().equals(player.getUniqueId()) ? session.getFirstItems() : session.getSecondItems();
-        if (ownItems.size() >= MAX_TRADE_ITEMS) {
-            player.sendMessage("Du kannst maximal " + MAX_TRADE_ITEMS + " Stacks anbieten.");
-            return;
-        }
-        ownItems.add(held.clone());
-        player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
-        resetConfirmations(session);
-    }
-
-    private void removeLastOwnItem(Player player, TradeSession session) {
-        List<ItemStack> items = session.getFirstPlayer().equals(player.getUniqueId()) ? session.getFirstItems() : session.getSecondItems();
-        if (items.isEmpty()) {
-            player.sendMessage("Du hast kein Item im Handel.");
-            return;
-        }
-        ItemStack item = items.remove(items.size() - 1);
-        Map<Integer, ItemStack> rest = player.getInventory().addItem(item);
-        if (!rest.isEmpty()) {
-            claimStorage.addClaim(player.getUniqueId(), item, "Tausch R\u00fcckgabe", 0, "R\u00fcckgabe aus abgebrochenem/angepasstem Handel");
-        }
-        resetConfirmations(session);
     }
 
     private void changeCoins(Player player, TradeSession session, double delta) {
@@ -254,7 +262,7 @@ public class TradeManager {
         double current = first ? session.getFirstCoins() : session.getSecondCoins();
         double next = Math.max(0, current + delta);
         if (next > economyService.getBalance(player.getUniqueId())) {
-            player.sendMessage("Nicht genug CraftTaler fuer dieses Angebot.");
+            MessageUtil.send(player, "Nicht genug CraftTaler f\u00fcr dieses Angebot.");
             return;
         }
         if (first) {
@@ -275,9 +283,9 @@ public class TradeManager {
         if (session.isFirstAccepted() && session.isSecondAccepted()) {
             completeTrade(session);
         } else {
-            player.sendMessage("Bestaetigt. Warte auf den Partner.");
+            MessageUtil.send(player, "Best\u00e4tigt. Warte auf den Partner.");
             if (other != null) {
-                other.sendMessage(player.getName() + " hat sein Angebot bestaetigt.");
+                MessageUtil.send(other, player.getName() + " hat sein Angebot best\u00e4tigt.");
             }
         }
     }
@@ -288,7 +296,9 @@ public class TradeManager {
 
     public void handleClose(Player player) {
         if (sessions.containsKey(player.getUniqueId())) {
-            player.sendMessage("Handel bleibt offen. Nutze /trade zum Fortsetzen oder den Abbrechen-Knopf.");
+            MessageUtil.sendActions(player, "Handel bleibt offen.",
+                    MessageUtil.action("Handel fortsetzen", "trade"),
+                    MessageUtil.action("Marketplace", "marketplace"));
         }
     }
 
@@ -310,8 +320,8 @@ public class TradeManager {
         economyService.deposit(session.getSecondPlayer(), session.getFirstCoins());
         moveItems(first, session.getSecondItems(), "Tausch erhalten");
         moveItems(second, session.getFirstItems(), "Tausch erhalten");
-        first.sendMessage("Handel abgeschlossen.");
-        second.sendMessage("Handel abgeschlossen.");
+        MessageUtil.send(first, "Handel abgeschlossen.");
+        MessageUtil.send(second, "Handel abgeschlossen.");
         sessions.remove(session.getFirstPlayer());
         sessions.remove(session.getSecondPlayer());
         first.closeInventory();
@@ -328,14 +338,14 @@ public class TradeManager {
         if (first != null) {
             moveItems(first, session.getFirstItems(), "Tausch R\u00fcckgabe");
             if (notify) {
-                first.sendMessage("Handel abgebrochen.");
+                MessageUtil.send(first, "Handel abgebrochen.");
             }
             first.closeInventory();
         }
         if (second != null) {
             moveItems(second, session.getSecondItems(), "Tausch R\u00fcckgabe");
             if (notify) {
-                second.sendMessage("Handel abgebrochen.");
+                MessageUtil.send(second, "Handel abgebrochen.");
             }
             second.closeInventory();
         }
@@ -379,6 +389,92 @@ public class TradeManager {
     private void resetConfirmations(TradeSession session) {
         session.setFirstAccepted(false);
         session.setSecondAccepted(false);
+    }
+
+    private void scheduleTradeSync(Player player) {
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            TradeSession current = sessions.get(player.getUniqueId());
+            if (current == null) {
+                return;
+            }
+            if (!(player.getOpenInventory().getTopInventory().getHolder() instanceof MenuHolder holder)
+                    || holder.getType() != MenuType.TRADE_SESSION) {
+                return;
+            }
+            syncOwnOfferFromView(player, current, player.getOpenInventory().getTopInventory());
+            Player other = Bukkit.getPlayer(partnerOf(current, player.getUniqueId()));
+            if (other != null) {
+                openTradeView(other);
+            }
+        });
+    }
+
+    private void syncOwnOfferFromView(Player player, TradeSession session, Inventory inventory) {
+        List<ItemStack> updated = new ArrayList<>();
+        for (int slot : OWN_TRADE_SLOTS) {
+            ItemStack item = inventory.getItem(slot);
+            if (item != null && !item.getType().isAir()) {
+                updated.add(item.clone());
+            }
+        }
+        List<ItemStack> target = session.getFirstPlayer().equals(player.getUniqueId()) ? session.getFirstItems() : session.getSecondItems();
+        if (!offersMatch(target, updated)) {
+            target.clear();
+            target.addAll(updated);
+            resetConfirmations(session);
+        }
+    }
+
+    private boolean offersMatch(List<ItemStack> current, List<ItemStack> updated) {
+        if (current.size() != updated.size()) {
+            return false;
+        }
+        for (int i = 0; i < current.size(); i++) {
+            if (!current.get(i).equals(updated.get(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void fillTradeDecorations(Inventory inventory) {
+        ItemStack glass = GuiItems.button(Material.BLACK_STAINED_GLASS_PANE, " ", List.of());
+        for (int slot = 36; slot <= 44; slot++) {
+            inventory.setItem(slot, glass);
+        }
+        inventory.setItem(13, glass);
+        inventory.setItem(22, glass);
+        inventory.setItem(31, glass);
+    }
+
+    private void fillForeignEmptySlots(Inventory inventory, int filled) {
+        ItemStack glass = GuiItems.button(Material.RED_STAINED_GLASS_PANE, " ", List.of("\u00A77Freier Slot der Gegenseite"));
+        for (int i = filled; i < FOREIGN_TRADE_SLOTS.length; i++) {
+            inventory.setItem(FOREIGN_TRADE_SLOTS[i], glass);
+        }
+    }
+
+    private int[] ownTradeDecorationSlots() {
+        return new int[]{13, 22, 31};
+    }
+
+    private boolean isOwnTradeSlot(int slot) {
+        for (int candidate : OWN_TRADE_SLOTS) {
+            if (candidate == slot) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private double resolveCoinDelta(InventoryClickEvent event, int step) {
+        if (event.getClick().isLeftClick()) {
+            return step;
+        }
+        if (event.getClick().isRightClick()) {
+            return -step;
+        }
+        return 0;
     }
 
     private void resumeOrAccept(Player player) {

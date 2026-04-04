@@ -10,6 +10,9 @@ public enum MenuType {
     MARKET_SELL,
     LOTTO_MAIN,
     CLAIMS,
+    MAIL_PLAYERS,
+    MAIL_COMPOSE,
+    MAIL_INBOX,
     TRADE_PLAYERS,
     TRADE_SESSION,
     AUCTION_MAIN

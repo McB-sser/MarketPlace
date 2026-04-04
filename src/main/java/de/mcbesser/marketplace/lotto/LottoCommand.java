@@ -1,5 +1,6 @@
 package de.mcbesser.marketplace.lotto;
 
+import de.mcbesser.marketplace.util.MessageUtil;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -16,7 +17,7 @@ public class LottoCommand implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("Nur Spieler k\u00f6nnen diesen Befehl nutzen.");
+            MessageUtil.send(sender, "Nur Spieler k\u00f6nnen diesen Befehl nutzen.");
             return true;
         }
         lottoManager.openMain(player);

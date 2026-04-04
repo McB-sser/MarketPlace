@@ -5,6 +5,7 @@ import de.mcbesser.marketplace.gui.GuiItems;
 import de.mcbesser.marketplace.gui.MenuHolder;
 import de.mcbesser.marketplace.gui.MenuType;
 import de.mcbesser.marketplace.util.CurrencyFormatter;
+import de.mcbesser.marketplace.util.MessageUtil;
 import java.io.File;
 import java.io.IOException;
 import java.time.Instant;
@@ -52,7 +53,8 @@ public class ClaimStorage {
         save();
         Player player = Bukkit.getPlayer(playerId);
         if (player != null) {
-            player.sendMessage("Ein Item wurde in dein Abholfach gelegt: " + source);
+            MessageUtil.sendActions(player, "Ein Item wurde in dein Abholfach gelegt: " + source,
+                    MessageUtil.action("Abholfach \u00f6ffnen", "marketplace"));
         }
     }
 
@@ -75,7 +77,7 @@ public class ClaimStorage {
         inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zum Hauptmen\u00fc")));
         inventory.setItem(46, GuiItems.button(Material.ARROW, "&eZur\u00fcck", List.of("&7Vorherige Seite")));
         inventory.setItem(49, GuiItems.button(Material.COMPASS, "&aZur\u00fcck zum Men\u00fc", List.of(contextDescription(context))));
-        inventory.setItem(53, GuiItems.button(Material.ARROW, "&eWeiter", List.of("&7Naechste Seite")));
+        inventory.setItem(53, GuiItems.button(Material.ARROW, "&eWeiter", List.of("&7N\u00e4chste Seite")));
         player.openInventory(inventory);
     }
 
@@ -108,11 +110,11 @@ public class ClaimStorage {
         Map<Integer, ItemStack> rest = player.getInventory().addItem(entry.getItem());
         if (!rest.isEmpty()) {
             entries.add(index, entry);
-            player.sendMessage("Dein Inventar ist voll.");
+            MessageUtil.send(player, "Dein Inventar ist voll.");
             return;
         }
         claims.put(player.getUniqueId(), entries);
-        player.sendMessage("Item aus dem Abholfach entnommen.");
+        MessageUtil.send(player, "Item aus dem Abholfach entnommen.");
         save();
         openClaims(player, page, context);
     }

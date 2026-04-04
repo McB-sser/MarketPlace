@@ -4,9 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.SkullMeta;
 
 public final class GuiItems {
 
@@ -24,6 +26,16 @@ public final class GuiItems {
         meta.setLore(coloredLore);
         meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         item.setItemMeta(meta);
+        return item;
+    }
+
+    public static ItemStack playerHead(OfflinePlayer player, String name, List<String> lore) {
+        ItemStack item = button(Material.PLAYER_HEAD, name, lore);
+        ItemMeta baseMeta = item.getItemMeta();
+        if (baseMeta instanceof SkullMeta meta) {
+            meta.setOwningPlayer(player);
+            item.setItemMeta(meta);
+        }
         return item;
     }
 }

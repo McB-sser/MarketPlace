@@ -3,6 +3,7 @@ package de.mcbesser.marketplace;
 import de.mcbesser.marketplace.auction.AuctionManager;
 import de.mcbesser.marketplace.jobs.JobManager;
 import de.mcbesser.marketplace.lotto.LottoManager;
+import de.mcbesser.marketplace.mail.MailManager;
 import de.mcbesser.marketplace.market.MarketManager;
 import de.mcbesser.marketplace.pricing.PriceGuideManager;
 import de.mcbesser.marketplace.sidebar.MarketplaceSidebarManager;
@@ -24,6 +25,7 @@ public class MarketplacePlugin extends JavaPlugin {
     private JobManager jobManager;
     private MarketManager marketManager;
     private LottoManager lottoManager;
+    private MailManager mailManager;
     private TradeManager tradeManager;
     private AuctionManager auctionManager;
     private MarketplaceMenu marketplaceMenu;
@@ -43,9 +45,10 @@ public class MarketplacePlugin extends JavaPlugin {
             jobManager = new JobManager(this, economyService, claimStorage, priceGuideManager);
             marketManager = new MarketManager(this, economyService, claimStorage, priceGuideManager);
             lottoManager = new LottoManager(this, economyService, claimStorage, marketManager, priceGuideManager);
+            mailManager = new MailManager(this, economyService, claimStorage);
             tradeManager = new TradeManager(this, economyService, claimStorage);
             auctionManager = new AuctionManager(this, economyService, claimStorage);
-            marketplaceMenu = new MarketplaceMenu(jobManager, marketManager, lottoManager, tradeManager, auctionManager, claimStorage);
+            marketplaceMenu = new MarketplaceMenu(jobManager, marketManager, lottoManager, mailManager, tradeManager, auctionManager, claimStorage);
             marketplaceSidebarManager = new MarketplaceSidebarManager(this, economyService, jobManager, auctionManager);
         } catch (IOException exception) {
             getLogger().severe("Initialisierung fehlgeschlagen: " + exception.getMessage());
@@ -59,7 +62,7 @@ public class MarketplacePlugin extends JavaPlugin {
             player.discoverRecipe(recipe.getKey());
         }
         getServer().getPluginManager().registerEvents(
-                new InteractionListener(this, marketplaceMenu, jobManager, marketManager, lottoManager, tradeManager, auctionManager, claimStorage, marketplaceSidebarManager),
+                new InteractionListener(this, marketplaceMenu, jobManager, marketManager, lottoManager, mailManager, tradeManager, auctionManager, claimStorage, marketplaceSidebarManager),
                 this
         );
         registerCommands();
@@ -89,6 +92,9 @@ public class MarketplacePlugin extends JavaPlugin {
         if (lottoManager != null) {
             lottoManager.save();
         }
+        if (mailManager != null) {
+            mailManager.shutdown();
+        }
         if (tradeManager != null) {
             tradeManager.save();
         }
@@ -107,6 +113,7 @@ public class MarketplacePlugin extends JavaPlugin {
         registerCommand("marketplace", new MarketplaceCommand(marketplaceMenu));
         registerCommand("market", new MarketCommand(marketManager));
         registerCommand("jobs", new JobsCommand(jobManager));
+        registerCommand("mail", new MailCommand(mailManager));
         registerCommand("trade", new TradeCommand(tradeManager));
         registerCommand("auction", new AuctionCommand(auctionManager));
         registerCommand("lotto", new de.mcbesser.marketplace.lotto.LottoCommand(lottoManager));
