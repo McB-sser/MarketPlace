@@ -5,7 +5,7 @@ api-version: "1.20"
 author: Codex
 commands:
   marketplace:
-    description: \u00d6ffnet das Marketplace-Hauptmen\u00fc
+    description: \u00d6ffnet das Marktplatz-Hauptmen\u00fc
     usage: /marketplace
     aliases: [mp]
   market:

@@ -48,7 +48,7 @@ public class NoteManager {
         inventory.setItem(4, GuiItems.button(Material.PAPER, "&eDeine Notiz",
                 List.of("&7Aktuell: " + preview(getNote(player.getUniqueId())),
                         "&7Speichert deinen pers\u00f6nlichen Text")));
-        inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zum Hauptmen\u00fc")));
+        inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zum Hauptmen\u00fc")));
         inventory.setItem(22, GuiItems.button(Material.WRITABLE_BOOK, "&eNotiz schreiben",
                 List.of("&7\u00d6ffnet ein beschreibbares Buch")));
         inventory.setItem(26, GuiItems.button(Material.BARRIER, "&cNotiz l\u00f6schen",
@@ -138,7 +138,7 @@ public class NoteManager {
             MessageUtil.send(player, "Du hast jetzt ein beschreibbares Buch f\u00fcr deine Notiz in der Hand.");
             MessageUtil.sendActions(player, "Rechtsklick damit. Danach mit Notizen zur\u00fcck.",
                     MessageUtil.action("Notizen \u00f6ffnen", "notes"),
-                    MessageUtil.action("Marketplace", "marketplace"));
+                    MessageUtil.action("Marktplatz", "marketplace"));
         });
     }
 

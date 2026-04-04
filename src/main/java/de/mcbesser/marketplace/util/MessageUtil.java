@@ -9,7 +9,7 @@ import org.bukkit.entity.Player;
 
 public final class MessageUtil {
 
-    private static final String PREFIX_TEXT = "[MarketPlace] ";
+    private static final String PREFIX_TEXT = "[Marktplatz] ";
 
     private MessageUtil() {
     }

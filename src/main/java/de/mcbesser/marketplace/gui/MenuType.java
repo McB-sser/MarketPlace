@@ -7,6 +7,7 @@ public enum MenuType {
     JOB_STORAGE,
     MARKET_MAIN,
     MARKET_LIST,
+    MARKET_OWN,
     MARKET_SELL,
     LOTTO_MAIN,
     CLAIMS,

@@ -67,7 +67,7 @@ public class AuctionManager {
                 : pending.clone());
         inventory.setItem(15, GuiItems.button(Material.EMERALD_BLOCK, "&aAuktion starten",
                 List.of("&7Startpreis: " + CurrencyFormatter.shortAmount(startPrice), "&7Dauer: " + seconds + " Sekunden", "&7Gebote laufen im Chat")));
-        inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zur\u00fcck zum Hauptmen\u00fc")));
+        inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zur\u00fcck zum Hauptmen\u00fc")));
         inventory.setItem(22, activeAuctionDisplay());
         inventory.setItem(26, GuiItems.button(Material.BARREL, "&eAbholfach", List.of("&7Auktionsr\u00fcckgaben und Gewinne")));
         player.openInventory(inventory);

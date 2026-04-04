@@ -76,7 +76,7 @@ public class JobManager {
             inventory.setItem(slot, createJobDisplay(player, jobs.get(index), now));
         }
 
-        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zum Hauptmen\u00fc")));
+        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zum Hauptmen\u00fc")));
         inventory.setItem(46, GuiItems.button(Material.ARROW, "&eZur\u00fcck", List.of("&7Vorherige Seite")));
         inventory.setItem(49, GuiItems.button(Material.WRITABLE_BOOK, "&aSpieler-Job erstellen",
                 List.of("&7Materialliste und Belohnung festlegen", "&7Belohnung wird direkt reserviert")));
@@ -217,7 +217,7 @@ public class JobManager {
             lore.add("\u00A77" + displayName(requirement.material()) + ": \u00A7f"
                     + progressFor(player, job, requirement.material()) + "/" + requirement.amount());
         }
-        inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zum Hauptmen\u00fc")));
+        inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zum Hauptmen\u00fc")));
         inventory.setItem(22, GuiItems.button(Material.CHEST, "&eNur passende Job-Items", lore));
         inventory.setItem(24, GuiItems.button(Material.ARROW, "&eZur Jobliste", List.of("&7Zur\u00fcck ohne Abgabe")));
         inventory.setItem(26, GuiItems.button(Material.EMERALD, "&aAbgeben", List.of("&7Lagervorrat und Inventar pr\u00fcfen")));
@@ -501,7 +501,7 @@ public class JobManager {
         inventory.setItem(44, GuiItems.button(Material.EMERALD_BLOCK, "&aJob erstellen",
                 List.of("&7Sichtbar f\u00fcr alle Spieler", "&7Belohnung: " + CurrencyFormatter.shortAmount(state.getReward()),
                         "&7Budget wird sofort abgezogen")));
-        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zum Hauptmen\u00fc")));
+        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zum Hauptmen\u00fc")));
         inventory.setItem(46, GuiItems.button(Material.ARROW, "&eZur\u00fcck", List.of("&7Zur Jobliste")));
         inventory.setItem(47, stepButton("-1000 CT"));
         inventory.setItem(48, stepButton("-100 CT"));

@@ -53,7 +53,7 @@ public class MarketplaceSidebarManager {
 
     private void updateSidebar(Player player) {
         Scoreboard scoreboard = Bukkit.getScoreboardManager().getNewScoreboard();
-        Objective objective = scoreboard.registerNewObjective(OBJECTIVE_NAME, Criteria.DUMMY, "\u00A76Marketplace");
+        Objective objective = scoreboard.registerNewObjective(OBJECTIVE_NAME, Criteria.DUMMY, "\u00A76Marktplatz");
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
 
         List<String> lines = new ArrayList<>();

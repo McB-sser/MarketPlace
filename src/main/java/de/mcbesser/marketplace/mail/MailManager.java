@@ -73,7 +73,7 @@ public class MailManager {
             inventory.setItem(slot, GuiItems.playerHead(target, "&a" + safeName(target),
                     List.of(statusLine(target), "&7Klick zum Mail-Entwurf")));
         }
-        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zum Hauptmen\u00fc")));
+        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zum Hauptmen\u00fc")));
         inventory.setItem(46, GuiItems.button(Material.SPYGLASS, "&eAktualisieren", List.of("&7Spielerliste neu laden")));
         inventory.setItem(49, GuiItems.button(Material.WRITABLE_BOOK, draftButtonTitle(player), List.of(draftButtonLore(player))));
         inventory.setItem(50, GuiItems.button(Material.CHEST, "&ePostfach", List.of("&7Erhaltene Spieler-Mails \u00f6ffnen")));
@@ -133,7 +133,7 @@ public class MailManager {
                 List.of("&7Geld: " + CurrencyFormatter.shortAmount(draft.getCoins()),
                         "&7Items: " + draft.getItems().size(),
                         "&7Nachricht: " + messagePreview(draft))));
-        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zum Hauptmen\u00fc")));
+        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zum Hauptmen\u00fc")));
         inventory.setItem(46, GuiItems.button(Material.PLAYER_HEAD, "&eSpielerliste", List.of("&7Anderen Empf\u00e4nger w\u00e4hlen")));
         inventory.setItem(47, GuiItems.button(Material.GOLD_NUGGET, "&6CraftTaler +/-1", List.of("&7Links +1", "&7Rechts -1")));
         inventory.setItem(48, GuiItems.button(Material.GOLD_INGOT, "&6CraftTaler +/-10", List.of("&7Links +10", "&7Rechts -10")));
@@ -199,7 +199,7 @@ public class MailManager {
             }
             inventory.setItem(slot, createInboxDisplay(entries.get(index)));
         }
-        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zum Hauptmen\u00fc")));
+        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zum Hauptmen\u00fc")));
         inventory.setItem(46, GuiItems.button(Material.ARROW, "&eZur\u00fcck", List.of("&7Vorherige Seite")));
         inventory.setItem(49, GuiItems.button(Material.PLAYER_HEAD, "&eMail senden", List.of("&7Neue Spieler-Mail verfassen")));
         inventory.setItem(53, GuiItems.button(Material.ARROW, "&eWeiter", List.of("&7N\u00e4chste Seite")));
@@ -224,7 +224,7 @@ public class MailManager {
                 List.of("&7Klick zum Auszahlen")));
         inventory.setItem(22, GuiItems.button(Material.WRITTEN_BOOK, "&eMail lesen",
                 List.of("&7" + messagePreview(entry.getMessage()), "&7Nachricht im Buch \u00f6ffnen")));
-        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zum Hauptmen\u00fc")));
+        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zum Hauptmen\u00fc")));
         inventory.setItem(46, GuiItems.button(Material.ARROW, "&eZur\u00fcck", List.of("&7Zur\u00fcck ins Postfach")));
         inventory.setItem(49, GuiItems.button(Material.CHEST, "&aAlles abholen", List.of("&7Items und Geld \u00fcbernehmen")));
         inventory.setItem(53, GuiItems.button(Material.BARRIER, "&cMail l\u00f6schen", List.of("&7Eintrag aus dem Postfach entfernen")));
@@ -341,7 +341,7 @@ public class MailManager {
         }
         MessageUtil.sendActions(player, "Du hast " + unread + " Spieler-Mail" + (unread == 1 ? "" : "s") + " im Postfach.",
                 MessageUtil.action("Postfach \u00f6ffnen", "mail"),
-                MessageUtil.action("Marketplace", "marketplace"));
+                MessageUtil.action("Marktplatz", "marketplace"));
     }
 
     public boolean handleBookEdit(PlayerEditBookEvent event) {
@@ -586,7 +586,7 @@ public class MailManager {
             MessageUtil.send(player, "Du hast jetzt ein beschreibbares Buch in der Hand.");
             MessageUtil.sendActions(player, "Rechtsklick damit, schreibe deine Nachricht. Danach mit Mail zur\u00fcck.",
                     MessageUtil.action("Mail \u00f6ffnen", "mail"),
-                    MessageUtil.action("Marketplace", "marketplace"));
+                    MessageUtil.action("Marktplatz", "marketplace"));
         });
     }
 
@@ -612,7 +612,7 @@ public class MailManager {
         if (recipient != null) {
             MessageUtil.sendActions(recipient, "Du hast neue Spieler-Mail von " + player.getName() + ".",
                     MessageUtil.action("Postfach \u00f6ffnen", "mail"),
-                    MessageUtil.action("Marketplace", "marketplace"));
+                    MessageUtil.action("Marktplatz", "marketplace"));
         }
         openPlayerList(player);
     }
@@ -863,7 +863,7 @@ public class MailManager {
         plugin.getServer().getScheduler().runTask(plugin, () ->
                 MessageUtil.sendActions(player, "Nach dem Schlie\u00dfen gehst du wieder in diese Mail zur\u00fcck.",
                         MessageUtil.action("Zur\u00fcck zur Mail", "mail"),
-                        MessageUtil.action("Marketplace", "marketplace")));
+                        MessageUtil.action("Marktplatz", "marketplace")));
     }
 
     private void startReadWatcher(Player player) {

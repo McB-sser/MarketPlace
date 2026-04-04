@@ -61,7 +61,7 @@ public class TradeManager {
             inventory.setItem(slot, GuiItems.button(Material.PLAYER_HEAD, "\u00A7a" + target.getName(),
                     List.of("\u00A77Klick f\u00fcr Handelsanfrage")));
         }
-        inventory.setItem(45, GuiItems.button(Material.COMPASS, "\u00A7aMarketplace", List.of("\u00A77Zur\u00fcck zum Hauptmen\u00fc")));
+        inventory.setItem(45, GuiItems.button(Material.COMPASS, "\u00A7aMarktplatz", List.of("\u00A77Zur\u00fcck zum Hauptmen\u00fc")));
         inventory.setItem(46, GuiItems.button(Material.SPYGLASS, "\u00A7eAktualisieren", List.of("\u00A77Online-Spieler neu laden")));
         inventory.setItem(49, GuiItems.button(Material.PAPER, actionLabel(player), List.of(actionLore(player))));
         inventory.setItem(51, GuiItems.button(Material.BARREL, "\u00A7eAbholfach", List.of("\u00A77Handelsgewinne und R\u00fcckgaben")));
@@ -134,7 +134,7 @@ public class TradeManager {
                         statusLine(session, first),
                         "\u00A77Links legst du Items aus deinem Inventar ab")));
         fillTradeDecorations(inventory);
-        inventory.setItem(45, GuiItems.button(Material.COMPASS, "\u00A7aMarketplace", List.of("\u00A77Hauptmen\u00fc \u00f6ffnen, Handel bleibt aktiv")));
+        inventory.setItem(45, GuiItems.button(Material.COMPASS, "\u00A7aMarktplatz", List.of("\u00A77Hauptmen\u00fc \u00f6ffnen, Handel bleibt aktiv")));
         inventory.setItem(46, GuiItems.button(Material.PLAYER_HEAD, "\u00A7eSpielerliste", List.of("\u00A77Weitere Anfragen und Partner anzeigen")));
         inventory.setItem(47, GuiItems.button(Material.GOLD_NUGGET, "\u00A76CT +/-1", List.of("\u00A77Linksklick: +1", "\u00A77Rechtsklick: -1")));
         inventory.setItem(48, GuiItems.button(Material.GOLD_INGOT, "\u00A76CT +/-10", List.of("\u00A77Linksklick: +10", "\u00A77Rechtsklick: -10")));
@@ -230,7 +230,7 @@ public class TradeManager {
         MessageUtil.send(player, "Handelsanfrage an " + target.getName() + " gesendet.");
         MessageUtil.sendActions(target, player.getName() + " m\u00f6chte mit dir handeln.",
                 MessageUtil.action("Handel \u00f6ffnen", "trade"),
-                MessageUtil.action("Marketplace", "marketplace"));
+                MessageUtil.action("Marktplatz", "marketplace"));
     }
 
     private void acceptRequest(Player player) {
@@ -302,7 +302,7 @@ public class TradeManager {
         if (sessions.containsKey(player.getUniqueId())) {
             MessageUtil.sendActions(player, "Handel bleibt offen.",
                     MessageUtil.action("Handel fortsetzen", "trade"),
-                    MessageUtil.action("Marketplace", "marketplace"));
+                    MessageUtil.action("Marktplatz", "marketplace"));
         }
     }
 

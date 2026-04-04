@@ -41,7 +41,7 @@ public class MarketplaceMenu {
     }
 
     public void open(Player player) {
-        Inventory inventory = Bukkit.createInventory(new MenuHolder(MenuType.HUB), 27, "Marketplace");
+        Inventory inventory = Bukkit.createInventory(new MenuHolder(MenuType.HUB), 27, "Marktplatz");
         inventory.setItem(10, GuiItems.button(Material.HAY_BLOCK, "&aJobs", List.of("&7Farm-Jobs ansehen")));
         inventory.setItem(12, GuiItems.button(Material.CHEST, "&6Markt", List.of("&7Marktangebote und Verkauf")));
         inventory.setItem(14, GuiItems.button(Material.NAME_TAG, "&bDirekthandel", List.of("&7Mit Spielern tauschen")));

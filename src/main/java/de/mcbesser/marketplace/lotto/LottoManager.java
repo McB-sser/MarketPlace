@@ -61,7 +61,7 @@ public class LottoManager {
                 List.of("&7Preis: " + CurrencyFormatter.shortAmount(currentRound.getTicketPrice() * 5))));
         inventory.setItem(15, GuiItems.button(Material.BOOK, "&a10 Tickets",
                 List.of("&7Preis: " + CurrencyFormatter.shortAmount(currentRound.getTicketPrice() * 10))));
-        inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zur\u00fcck zum Hauptmen\u00fc")));
+        inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zur\u00fcck zum Hauptmen\u00fc")));
         inventory.setItem(22, GuiItems.button(Material.CLOCK, "&eZiehung in " + remainingText(),
                 List.of("&7Tickets: " + currentRound.getTotalTickets(),
                         "&7Teilnehmer: " + currentRound.getParticipantCount(),

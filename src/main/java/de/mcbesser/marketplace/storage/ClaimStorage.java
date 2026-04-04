@@ -74,7 +74,7 @@ public class ClaimStorage {
             ClaimEntry entry = entries.get(index);
             inventory.setItem(slot, createDisplay(entry));
         }
-        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zum Hauptmen\u00fc")));
+        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zum Hauptmen\u00fc")));
         inventory.setItem(46, GuiItems.button(Material.ARROW, "&eZur\u00fcck", List.of("&7Vorherige Seite")));
         inventory.setItem(49, GuiItems.button(Material.COMPASS, "&aZur\u00fcck zum Men\u00fc", List.of(contextDescription(context))));
         inventory.setItem(53, GuiItems.button(Material.ARROW, "&eWeiter", List.of("&7N\u00e4chste Seite")));
@@ -135,7 +135,7 @@ public class ClaimStorage {
             case CONTEXT_AUCTION -> "&7Zur Auktions\u00fcbersicht";
             case CONTEXT_LOTTO -> "&7Zur Lotto\u00fcbersicht";
             case CONTEXT_TRADE -> "&7Zur Handels\u00fcbersicht";
-            default -> "&7Zum Marketplace-Hauptmen\u00fc";
+            default -> "&7Zum Marktplatz-Hauptmen\u00fc";
         };
     }
 

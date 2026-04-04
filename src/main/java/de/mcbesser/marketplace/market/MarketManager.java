@@ -59,11 +59,13 @@ public class MarketManager {
     public void openMain(Player player) {
         Inventory inventory = Bukkit.createInventory(new MenuHolder(MenuType.MARKET_MAIN), 27, "Markt");
         inventory.setItem(11, GuiItems.button(Material.BOOK, "&aAngebote", List.of("&7Aktuelle Marktangebote ansehen")));
+        inventory.setItem(12, GuiItems.button(Material.WRITABLE_BOOK, "&eMeine Angebote",
+                List.of("&7Eigene Marktangebote ansehen", "&7und bei Bedarf abbrechen")));
         inventory.setItem(13, GuiItems.button(Material.EMERALD, "&6Preis f\u00fcr eingelegtes/Hand-Item: " + priceRange(player),
                 List.of("&7Niedrigster und h\u00f6chster Preis", "&7f\u00fcr das eingelegte Item oder dein Hand-Item")));
         inventory.setItem(15, GuiItems.button(Material.CHEST, "&bVerkaufen",
                 List.of("&7Lege ein Item in Slot 13", "&7und stelle den Preis ein")));
-        inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zur\u00fcck zum Hauptmen\u00fc")));
+        inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zur\u00fcck zum Hauptmen\u00fc")));
         inventory.setItem(22, GuiItems.button(Material.BARREL, "&eAbholfach",
                 List.of("&7Abgelaufene oder ausgelagerte Items")));
         player.openInventory(inventory);
@@ -80,17 +82,35 @@ public class MarketManager {
             if (index >= sorted.size()) {
                 break;
             }
-            inventory.setItem(slot, createListingDisplay(sorted.get(index)));
+            inventory.setItem(slot, createListingDisplay(player, sorted.get(index)));
         }
-        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zum Hauptmen\u00fc")));
+        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zum Hauptmen\u00fc")));
         inventory.setItem(46, GuiItems.button(Material.ARROW, "&eZur\u00fcck", List.of("&7Vorherige Seite")));
         inventory.setItem(49, GuiItems.button(Material.COMPASS, "&aHauptmen\u00fc", List.of("&7Zur Markt\u00fcbersicht")));
         inventory.setItem(53, GuiItems.button(Material.ARROW, "&eWeiter", List.of("&7N\u00e4chste Seite")));
         player.openInventory(inventory);
     }
 
+    public void openOwnListingPage(Player player, int page) {
+        Inventory inventory = Bukkit.createInventory(new MenuHolder(MenuType.MARKET_OWN, page, ""), 54, "Meine Angebote");
+        List<MarketListing> ownListings = ownListings(player.getUniqueId());
+        int start = page * 45;
+        for (int slot = 0; slot < 45; slot++) {
+            int index = start + slot;
+            if (index >= ownListings.size()) {
+                break;
+            }
+            inventory.setItem(slot, createOwnListingDisplay(ownListings.get(index)));
+        }
+        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zum Hauptmen\u00fc")));
+        inventory.setItem(46, GuiItems.button(Material.ARROW, "&eZur\u00fcck", List.of("&7Vorherige Seite")));
+        inventory.setItem(49, GuiItems.button(Material.BOOK, "&aMarktangebote", List.of("&7Zur allgemeinen Angebotsliste")));
+        inventory.setItem(53, GuiItems.button(Material.ARROW, "&eWeiter", List.of("&7N\u00e4chste Seite")));
+        player.openInventory(inventory);
+    }
+
     public void openSellMenu(Player player) {
-        double price = pendingSellPrice.getOrDefault(player.getUniqueId(), 100.0D);
+        Double price = pendingSellPrice.get(player.getUniqueId());
         Inventory inventory = Bukkit.createInventory(new MenuHolder(MenuType.MARKET_SELL), 27, "Marktpreis setzen");
         ItemStack item = pendingSellItem.get(player.getUniqueId());
         inventory.setItem(ITEM_SLOT, item == null
@@ -100,13 +120,14 @@ public class MarketManager {
                 List.of("&7Links: +1", "&7Rechts: -1", "&7Shift+Links: +10", "&7Shift+Rechts: -10")));
         inventory.setItem(11, GuiItems.button(Material.GOLD_INGOT, "&6Preis grob",
                 List.of("&7Links: +100", "&7Rechts: -100", "&7Shift+Links: +1000", "&7Shift+Rechts: -1000")));
-        inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarketplace", List.of("&7Zur\u00fcck zum Hauptmen\u00fc")));
+        inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zur\u00fcck zum Hauptmen\u00fc")));
         inventory.setItem(15, GuiItems.button(Material.ARROW, "&eZur Markt\u00fcbersicht", List.of("&7Zur\u00fcck ohne Angebot zu erstellen")));
-        inventory.setItem(22, GuiItems.button(Material.EMERALD, "&6Angebot erstellen: " + CurrencyFormatter.shortAmount(price),
+        inventory.setItem(22, GuiItems.button(Material.EMERALD,
+                price == null ? "&6Angebot erstellen: Preis fehlt" : "&6Angebot erstellen: " + CurrencyFormatter.shortAmount(price),
                 List.of("&7Marktpreis: " + priceRange(player),
                         "&7Erlaubt: " + allowedRange(player),
                         "&7Ohne Richtwert ist der erste Preis frei",
-                        "&aKlick zum Einstellen")));
+                        price == null ? "&cStelle zuerst selbst einen Preis ein" : "&aKlick zum Einstellen")));
         player.openInventory(inventory);
     }
 
@@ -129,6 +150,9 @@ public class MarketManager {
         } else if (rawSlot == 11) {
             ignoreNextClose.add(player.getUniqueId());
             openListingPage(player, 0);
+        } else if (rawSlot == 12) {
+            ignoreNextClose.add(player.getUniqueId());
+            openOwnListingPage(player, 0);
         } else if (rawSlot == 15) {
             ignoreNextClose.add(player.getUniqueId());
             openSellMenu(player);
@@ -166,9 +190,47 @@ public class MarketManager {
         if (index >= sorted.size()) {
             return;
         }
-        buyListing(player, sorted.get(index).getId());
+        MarketListing listing = sorted.get(index);
+        if (listing.getSellerId().equals(player.getUniqueId())) {
+            cancelOwnListing(player, listing);
+        } else {
+            buyListing(player, listing.getId());
+        }
         ignoreNextClose.add(player.getUniqueId());
         openListingPage(player, page);
+    }
+
+    public void handleOwnListingClick(Player player, int rawSlot, int page) {
+        List<MarketListing> ownListings = ownListings(player.getUniqueId());
+        if (rawSlot == 45) {
+            player.performCommand("marketplace");
+            return;
+        }
+        if (rawSlot == 46 && page > 0) {
+            ignoreNextClose.add(player.getUniqueId());
+            openOwnListingPage(player, page - 1);
+            return;
+        }
+        if (rawSlot == 49) {
+            ignoreNextClose.add(player.getUniqueId());
+            openListingPage(player, 0);
+            return;
+        }
+        if (rawSlot == 53 && ((page + 1) * 45) < ownListings.size()) {
+            ignoreNextClose.add(player.getUniqueId());
+            openOwnListingPage(player, page + 1);
+            return;
+        }
+        if (rawSlot < 0 || rawSlot >= 45) {
+            return;
+        }
+        int index = page * 45 + rawSlot;
+        if (index >= ownListings.size()) {
+            return;
+        }
+        cancelOwnListing(player, ownListings.get(index));
+        ignoreNextClose.add(player.getUniqueId());
+        openOwnListingPage(player, page);
     }
 
     public void handleSellClick(Player player, InventoryClickEvent event) {
@@ -177,7 +239,8 @@ public class MarketManager {
             openSellMenu(player);
             return;
         }
-        double current = pendingSellPrice.getOrDefault(player.getUniqueId(), 100.0D);
+        Double currentValue = pendingSellPrice.get(player.getUniqueId());
+        double current = currentValue == null ? 0.0D : currentValue;
         switch (event.getRawSlot()) {
             case 10 -> current = Math.max(1, current + resolveStep(event.getClick(), 1, 10));
             case 11 -> current = Math.max(1, current + resolveStep(event.getClick(), 100, 1000));
@@ -192,6 +255,12 @@ public class MarketManager {
                 return;
             }
             case 22 -> {
+                if (currentValue == null) {
+                    MessageUtil.send(player, "Stelle zuerst einen Preis f\u00fcr dein Angebot ein.");
+                    ignoreNextClose.add(player.getUniqueId());
+                    openSellMenu(player);
+                    return;
+                }
                 pendingSellPrice.put(player.getUniqueId(), current);
                 createListing(player, current);
                 ignoreNextClose.add(player.getUniqueId());
@@ -320,6 +389,17 @@ public class MarketManager {
         MessageUtil.send(player, "Marktangebot #" + listing.getId() + " f\u00fcr " + CurrencyFormatter.shortAmount(price) + " erstellt.");
     }
 
+    private void cancelOwnListing(Player player, MarketListing listing) {
+        listings.remove(listing);
+        Map<Integer, ItemStack> rest = player.getInventory().addItem(listing.getItem());
+        if (!rest.isEmpty()) {
+            claimStorage.addClaim(player.getUniqueId(), listing.getItem(), "Marktangebot abgebrochen", listing.getPrice(),
+                    "Abgebrochenes Angebot #" + listing.getId());
+        }
+        save();
+        MessageUtil.send(player, "Angebot #" + listing.getId() + " abgebrochen.");
+    }
+
     private void buyListing(Player player, int listingId) {
         MarketListing listing = listings.stream().filter(entry -> entry.getId() == listingId).findFirst().orElse(null);
         if (listing == null) {
@@ -341,19 +421,46 @@ public class MarketManager {
         MessageUtil.send(player, "Angebot gekauft.");
     }
 
-    private ItemStack createListingDisplay(MarketListing listing) {
+    private ItemStack createListingDisplay(Player viewer, MarketListing listing) {
         ItemStack display = listing.getItem().clone();
         ItemMeta meta = display.getItemMeta();
         List<String> lore = meta != null && meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
         lore.add(" ");
         lore.add("\u00A77Angebot: \u00A7f#" + listing.getId());
         lore.add("\u00A77Preis: \u00A76" + CurrencyFormatter.shortAmount(listing.getPrice()));
-        lore.add("\u00A7aKlick zum Kaufen");
+        if (listing.getSellerId().equals(viewer.getUniqueId())) {
+            lore.add("\u00A7eEigenes Angebot");
+            lore.add("\u00A7cKlick zum Abbrechen");
+        } else {
+            lore.add("\u00A7aKlick zum Kaufen");
+        }
         if (meta != null) {
             meta.setLore(lore);
             display.setItemMeta(meta);
         }
         return display;
+    }
+
+    private ItemStack createOwnListingDisplay(MarketListing listing) {
+        ItemStack display = listing.getItem().clone();
+        ItemMeta meta = display.getItemMeta();
+        List<String> lore = meta != null && meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+        lore.add(" ");
+        lore.add("\u00A77Angebot: \u00A7f#" + listing.getId());
+        lore.add("\u00A77Preis: \u00A76" + CurrencyFormatter.shortAmount(listing.getPrice()));
+        lore.add("\u00A7cKlick zum Abbrechen");
+        if (meta != null) {
+            meta.setLore(lore);
+            display.setItemMeta(meta);
+        }
+        return display;
+    }
+
+    private List<MarketListing> ownListings(UUID playerId) {
+        return listings.stream()
+                .filter(listing -> listing.getSellerId().equals(playerId))
+                .sorted(Comparator.comparingLong(MarketListing::getCreatedAt).reversed())
+                .toList();
     }
 
     private String priceRange(Player player) {

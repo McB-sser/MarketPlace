@@ -90,6 +90,10 @@ public class InteractionListener implements Listener {
                 event.setCancelled(true);
                 marketManager.handleListingClick(player, event.getRawSlot(), holder.getPage());
             }
+            case MARKET_OWN -> {
+                event.setCancelled(true);
+                marketManager.handleOwnListingClick(player, event.getRawSlot(), holder.getPage());
+            }
             case MARKET_SELL -> {
                 event.setCancelled(true);
                 marketManager.handleSellClick(player, event);
