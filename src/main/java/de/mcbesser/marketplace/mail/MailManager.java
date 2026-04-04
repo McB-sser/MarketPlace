@@ -8,6 +8,7 @@ import de.mcbesser.marketplace.gui.MenuType;
 import de.mcbesser.marketplace.storage.ClaimStorage;
 import de.mcbesser.marketplace.util.CurrencyFormatter;
 import de.mcbesser.marketplace.util.MessageUtil;
+import io.papermc.paper.event.player.PlayerStopUsingItemEvent;
 import java.io.File;
 import java.io.IOException;
 import java.time.Instant;
@@ -29,8 +30,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerEditBookEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
+import org.bukkit.scheduler.BukkitTask;
 
 public class MailManager {
 
@@ -50,6 +53,8 @@ public class MailManager {
     private final Map<UUID, ItemStack> editingBookSnapshots = new HashMap<>();
     private final Map<UUID, Integer> editingBookSlots = new HashMap<>();
     private final Map<UUID, ItemStack> previousHeldItems = new HashMap<>();
+    private final Map<UUID, MailReadSession> readSessions = new HashMap<>();
+    private final Map<UUID, BukkitTask> readWatchTasks = new HashMap<>();
 
     public MailManager(MarketplacePlugin plugin, EconomyService economyService, ClaimStorage claimStorage) throws IOException {
         this.plugin = plugin;
@@ -366,6 +371,9 @@ public class MailManager {
     }
 
     public void resumeDraft(Player player) {
+        if (resumeReadableMail(player)) {
+            return;
+        }
         captureBookMessage(player);
         MailViewContext viewContext = readReturnTargets.remove(player.getUniqueId());
         if (viewContext != null) {
@@ -411,6 +419,16 @@ public class MailManager {
     }
 
     public void shutdown() {
+        for (BukkitTask task : new ArrayList<>(readWatchTasks.values())) {
+            task.cancel();
+        }
+        readWatchTasks.clear();
+        for (UUID playerId : new ArrayList<>(readSessions.keySet())) {
+            Player player = Bukkit.getPlayer(playerId);
+            if (player != null) {
+                restoreReadableMail(player);
+            }
+        }
         for (UUID playerId : new ArrayList<>(editingBookSnapshots.keySet())) {
             Player player = Bukkit.getPlayer(playerId);
             if (player != null) {
@@ -534,11 +552,8 @@ public class MailManager {
 
     private void openReadableMail(Player player, int page, MailEntry entry) {
         readReturnTargets.put(player.getUniqueId(), new MailViewContext(page, entry.getId()));
-        player.openBook(createReadableBook(entry));
-        plugin.getServer().getScheduler().runTask(plugin, () ->
-                MessageUtil.sendActions(player, "Nach dem Lesen hier zur\u00fcck zur Mail.",
-                        MessageUtil.action("Mail \u00f6ffnen", "mail"),
-                        MessageUtil.action("Postfach", "mail")));
+        player.closeInventory();
+        plugin.getServer().getScheduler().runTask(plugin, () -> beginReadableMail(player, page, entry));
     }
 
     private void changeCoins(Player player, MailDraft draft, double delta) {
@@ -820,5 +835,142 @@ public class MailManager {
         }
         draft.setAwaitingMessage(false);
         plugin.getServer().getScheduler().runTask(plugin, () -> restoreEditingBook(player));
+    }
+
+    public void handleStopUsingItem(PlayerStopUsingItemEvent event) {
+        Player player = event.getPlayer();
+        MailReadSession session = readSessions.get(player.getUniqueId());
+        if (session == null || event.getItem().getType() != Material.WRITTEN_BOOK) {
+            return;
+        }
+        finishReadableMail(player);
+    }
+
+    private void beginReadableMail(Player player, int page, MailEntry entry) {
+        restoreReadableMail(player);
+        int slot = player.getInventory().getHeldItemSlot();
+        ItemStack previous = player.getInventory().getItem(slot);
+        ItemStack previousClone = previous != null && !previous.getType().isAir() ? previous.clone() : null;
+        ItemStack book = createReadableBook(entry);
+        readSessions.put(player.getUniqueId(), new MailReadSession(page, entry.getId(), slot, previousClone));
+        player.getInventory().setItem(slot, book);
+        player.updateInventory();
+        player.openBook(book);
+        player.startUsingItem(EquipmentSlot.HAND);
+        startReadWatcher(player);
+        plugin.getServer().getScheduler().runTask(plugin, () ->
+                MessageUtil.sendActions(player, "Nach dem Schlie\u00dfen gehst du wieder in diese Mail zur\u00fcck.",
+                        MessageUtil.action("Zur\u00fcck zur Mail", "mail"),
+                        MessageUtil.action("Marketplace", "marketplace")));
+    }
+
+    private void startReadWatcher(Player player) {
+        UUID playerId = player.getUniqueId();
+        cancelReadWatcher(playerId);
+        BukkitTask task = plugin.getServer().getScheduler().runTaskTimer(plugin, new Runnable() {
+            private int attempts;
+
+            @Override
+            public void run() {
+                attempts++;
+                MailReadSession session = readSessions.get(playerId);
+                if (session == null || !player.isOnline()) {
+                    cancelReadWatcher(playerId);
+                    return;
+                }
+                if (player.hasActiveItem()) {
+                    session.setActiveSeen(true);
+                } else if (session.hasActiveSeen()) {
+                    finishReadableMail(player);
+                    return;
+                }
+                if (attempts == 5 && !session.hasActiveSeen()) {
+                    player.startUsingItem(EquipmentSlot.HAND);
+                }
+                if (attempts >= 200 && !session.hasActiveSeen()) {
+                    cancelReadWatcher(playerId);
+                }
+            }
+        }, 1L, 1L);
+        readWatchTasks.put(playerId, task);
+    }
+
+    private boolean resumeReadableMail(Player player) {
+        if (!readSessions.containsKey(player.getUniqueId())) {
+            return false;
+        }
+        finishReadableMail(player);
+        return true;
+    }
+
+    private void finishReadableMail(Player player) {
+        UUID playerId = player.getUniqueId();
+        MailReadSession session = readSessions.remove(playerId);
+        cancelReadWatcher(playerId);
+        if (session == null) {
+            return;
+        }
+        readReturnTargets.remove(playerId);
+        player.getInventory().setItem(session.slot(), session.previousHeldItem());
+        player.updateInventory();
+        plugin.getServer().getScheduler().runTask(plugin, () -> openMailDetail(player, session.page(), session.entryId()));
+    }
+
+    private void restoreReadableMail(Player player) {
+        UUID playerId = player.getUniqueId();
+        MailReadSession session = readSessions.remove(playerId);
+        cancelReadWatcher(playerId);
+        if (session == null) {
+            return;
+        }
+        readReturnTargets.remove(playerId);
+        player.getInventory().setItem(session.slot(), session.previousHeldItem());
+        player.updateInventory();
+    }
+
+    private void cancelReadWatcher(UUID playerId) {
+        BukkitTask task = readWatchTasks.remove(playerId);
+        if (task != null) {
+            task.cancel();
+        }
+    }
+
+    private static final class MailReadSession {
+        private final int page;
+        private final int entryId;
+        private final int slot;
+        private final ItemStack previousHeldItem;
+        private boolean activeSeen;
+
+        private MailReadSession(int page, int entryId, int slot, ItemStack previousHeldItem) {
+            this.page = page;
+            this.entryId = entryId;
+            this.slot = slot;
+            this.previousHeldItem = previousHeldItem;
+        }
+
+        private int page() {
+            return page;
+        }
+
+        private int entryId() {
+            return entryId;
+        }
+
+        private int slot() {
+            return slot;
+        }
+
+        private ItemStack previousHeldItem() {
+            return previousHeldItem;
+        }
+
+        private boolean hasActiveSeen() {
+            return activeSeen;
+        }
+
+        private void setActiveSeen(boolean activeSeen) {
+            this.activeSeen = activeSeen;
+        }
     }
 }

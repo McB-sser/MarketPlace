@@ -13,6 +13,7 @@ import de.mcbesser.marketplace.storage.ClaimStorage;
 import de.mcbesser.marketplace.trade.TradeManager;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import io.papermc.paper.event.player.PlayerPickItemEvent;
+import io.papermc.paper.event.player.PlayerStopUsingItemEvent;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -201,6 +202,11 @@ public class InteractionListener implements Listener {
         }
         event.setCancelled(true);
         tradeManager.handleHandelsblattQuickTrade(player, target);
+    }
+
+    @EventHandler
+    public void onStopUsingItem(PlayerStopUsingItemEvent event) {
+        mailManager.handleStopUsingItem(event);
     }
 
     @EventHandler
