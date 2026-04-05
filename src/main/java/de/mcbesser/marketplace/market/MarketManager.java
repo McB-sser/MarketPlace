@@ -35,6 +35,15 @@ import org.bukkit.inventory.meta.ItemMeta;
 public class MarketManager {
 
     private static final int ITEM_SLOT = 13;
+    private static final long[] EXPIRY_OPTIONS = {
+            0L,
+            Duration.ofHours(1).toMillis(),
+            Duration.ofHours(6).toMillis(),
+            Duration.ofHours(12).toMillis(),
+            Duration.ofDays(1).toMillis(),
+            Duration.ofDays(3).toMillis(),
+            Duration.ofDays(7).toMillis()
+    };
     private final MarketplacePlugin plugin;
     private final EconomyService economyService;
     private final ClaimStorage claimStorage;
@@ -43,6 +52,7 @@ public class MarketManager {
     private final List<MarketListing> listings = new ArrayList<>();
     private final AtomicInteger nextId = new AtomicInteger(1);
     private final Map<UUID, Double> pendingSellPrice = new HashMap<>();
+    private final Map<UUID, Long> pendingSellExpiry = new HashMap<>();
     private final Map<UUID, ItemStack> pendingSellItem = new HashMap<>();
     private final Set<UUID> ignoreNextClose = new HashSet<>();
 
@@ -111,6 +121,7 @@ public class MarketManager {
 
     public void openSellMenu(Player player) {
         Double price = pendingSellPrice.get(player.getUniqueId());
+        long expiry = pendingSellExpiry.getOrDefault(player.getUniqueId(), 0L);
         Inventory inventory = Bukkit.createInventory(new MenuHolder(MenuType.MARKET_SELL), 27, "Marktpreis setzen");
         ItemStack item = pendingSellItem.get(player.getUniqueId());
         inventory.setItem(ITEM_SLOT, item == null
@@ -120,12 +131,17 @@ public class MarketManager {
                 List.of("&7Links: +1", "&7Rechts: -1", "&7Shift+Links: +10", "&7Shift+Rechts: -10")));
         inventory.setItem(11, GuiItems.button(Material.GOLD_INGOT, "&6Preis grob",
                 List.of("&7Links: +100", "&7Rechts: -100", "&7Shift+Links: +1000", "&7Shift+Rechts: -1000")));
+        inventory.setItem(16, GuiItems.button(Material.CLOCK, "&eLaufzeit: " + expiryLabel(expiry),
+                List.of("&7Links: n\u00e4chste Laufzeit",
+                        "&7Rechts: vorige Laufzeit",
+                        "&7Ohne Auswahl bleibt das Angebot dauerhaft")));
         inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zur\u00fcck zum Hauptmen\u00fc")));
         inventory.setItem(15, GuiItems.button(Material.ARROW, "&eZur Markt\u00fcbersicht", List.of("&7Zur\u00fcck ohne Angebot zu erstellen")));
         inventory.setItem(22, GuiItems.button(Material.EMERALD,
                 price == null ? "&6Angebot erstellen: Preis fehlt" : "&6Angebot erstellen: " + CurrencyFormatter.shortAmount(price),
                 List.of("&7Marktpreis: " + priceRange(player),
                         "&7Erlaubt: " + allowedRange(player),
+                        "&7Laufzeit: " + expiryLabel(expiry),
                         "&7Ohne Richtwert ist der erste Preis frei",
                         price == null ? "&cStelle zuerst selbst einen Preis ein" : "&aKlick zum Einstellen")));
         player.openInventory(inventory);
@@ -244,6 +260,13 @@ public class MarketManager {
         switch (event.getRawSlot()) {
             case 10 -> current = Math.max(1, current + resolveStep(event.getClick(), 1, 10));
             case 11 -> current = Math.max(1, current + resolveStep(event.getClick(), 100, 1000));
+            case 16 -> {
+                long expiry = cycleExpiry(player.getUniqueId(), event.getClick().isRightClick() ? -1 : 1);
+                pendingSellPrice.put(player.getUniqueId(), current);
+                ignoreNextClose.add(player.getUniqueId());
+                openSellMenu(player);
+                return;
+            }
             case 18 -> {
                 ignoreNextClose.add(player.getUniqueId());
                 player.performCommand("marketplace");
@@ -262,7 +285,7 @@ public class MarketManager {
                     return;
                 }
                 pendingSellPrice.put(player.getUniqueId(), current);
-                createListing(player, current);
+                createListing(player, current, pendingSellExpiry.getOrDefault(player.getUniqueId(), 0L));
                 ignoreNextClose.add(player.getUniqueId());
                 openMain(player);
                 return;
@@ -293,7 +316,7 @@ public class MarketManager {
     public void tick() {
         long now = System.currentTimeMillis();
         listings.removeIf(listing -> {
-            if (listing.getExpiresAt() > now) {
+            if (listing.getExpiresAt() <= 0 || listing.getExpiresAt() > now) {
                 return false;
             }
             claimStorage.addClaim(listing.getSellerId(), listing.getItem(), "Markt abgelaufen", listing.getPrice(),
@@ -370,7 +393,7 @@ public class MarketManager {
         return false;
     }
 
-    private void createListing(Player player, double price) {
+    private void createListing(Player player, double price, long expiryDuration) {
         ItemStack listed = pendingSellItem.remove(player.getUniqueId());
         if (listed == null || listed.getType().isAir()) {
             MessageUtil.send(player, "Lege zuerst ein Verkaufsitem in den vorgesehenen Slot.");
@@ -381,8 +404,9 @@ public class MarketManager {
             MessageUtil.send(player, "Preis ausserhalb des erlaubten Bereichs: " + priceGuideManager.allowedRangeText(listed));
             return;
         }
+        pendingSellExpiry.remove(player.getUniqueId());
         MarketListing listing = new MarketListing(nextId.getAndIncrement(), player.getUniqueId(), listed.clone(), price,
-                System.currentTimeMillis(), System.currentTimeMillis() + Duration.ofHours(24).toMillis());
+                System.currentTimeMillis(), expiryDuration <= 0 ? 0L : System.currentTimeMillis() + expiryDuration);
         listings.add(listing);
         priceGuideManager.registerObservation(listed, price);
         save();
@@ -428,6 +452,7 @@ public class MarketManager {
         lore.add(" ");
         lore.add("\u00A77Angebot: \u00A7f#" + listing.getId());
         lore.add("\u00A77Preis: \u00A76" + CurrencyFormatter.shortAmount(listing.getPrice()));
+        lore.add("\u00A77Laufzeit: " + listingExpiryLabel(listing));
         if (listing.getSellerId().equals(viewer.getUniqueId())) {
             lore.add("\u00A7eEigenes Angebot");
             lore.add("\u00A7cKlick zum Abbrechen");
@@ -448,6 +473,7 @@ public class MarketManager {
         lore.add(" ");
         lore.add("\u00A77Angebot: \u00A7f#" + listing.getId());
         lore.add("\u00A77Preis: \u00A76" + CurrencyFormatter.shortAmount(listing.getPrice()));
+        lore.add("\u00A77Laufzeit: " + listingExpiryLabel(listing));
         lore.add("\u00A7cKlick zum Abbrechen");
         if (meta != null) {
             meta.setLore(lore);
@@ -504,6 +530,50 @@ public class MarketManager {
             return -amount;
         }
         return 0;
+    }
+
+    private long cycleExpiry(UUID playerId, int direction) {
+        long current = pendingSellExpiry.getOrDefault(playerId, 0L);
+        int index = 0;
+        for (int i = 0; i < EXPIRY_OPTIONS.length; i++) {
+            if (EXPIRY_OPTIONS[i] == current) {
+                index = i;
+                break;
+            }
+        }
+        int nextIndex = Math.floorMod(index + direction, EXPIRY_OPTIONS.length);
+        long next = EXPIRY_OPTIONS[nextIndex];
+        pendingSellExpiry.put(playerId, next);
+        return next;
+    }
+
+    private String expiryLabel(long expiryDuration) {
+        if (expiryDuration <= 0) {
+            return "dauerhaft";
+        }
+        return formatDuration(expiryDuration);
+    }
+
+    private String listingExpiryLabel(MarketListing listing) {
+        if (listing.getExpiresAt() <= 0) {
+            return "dauerhaft";
+        }
+        long remaining = Math.max(0L, listing.getExpiresAt() - System.currentTimeMillis());
+        return formatDuration(remaining);
+    }
+
+    private String formatDuration(long durationMillis) {
+        Duration duration = Duration.ofMillis(durationMillis);
+        long days = duration.toDays();
+        if (days > 0) {
+            return days + " Tag" + (days == 1 ? "" : "e");
+        }
+        long hours = duration.toHours();
+        if (hours > 0) {
+            return hours + " Stunde" + (hours == 1 ? "" : "n");
+        }
+        long minutes = Math.max(1L, duration.toMinutes());
+        return minutes + " Minute" + (minutes == 1 ? "" : "n");
     }
 }
 
