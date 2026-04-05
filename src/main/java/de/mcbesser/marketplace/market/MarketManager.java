@@ -34,7 +34,12 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 public class MarketManager {
 
-    private static final int ITEM_SLOT = 13;
+    private static final int[] SELL_ITEM_SLOTS = {
+            0, 1, 2, 3, 4, 5, 6, 7, 8,
+            9, 10, 11, 12, 13, 14, 15, 16, 17,
+            18, 19, 20, 21, 22, 23, 24, 25, 26,
+            27, 28, 29, 30, 31, 32, 33, 34, 35
+    };
     private static final long[] EXPIRY_OPTIONS = {
             0L,
             Duration.ofHours(1).toMillis(),
@@ -44,6 +49,7 @@ public class MarketManager {
             Duration.ofDays(3).toMillis(),
             Duration.ofDays(7).toMillis()
     };
+
     private final MarketplacePlugin plugin;
     private final EconomyService economyService;
     private final ClaimStorage claimStorage;
@@ -51,9 +57,7 @@ public class MarketManager {
     private final File file;
     private final List<MarketListing> listings = new ArrayList<>();
     private final AtomicInteger nextId = new AtomicInteger(1);
-    private final Map<UUID, Double> pendingSellPrice = new HashMap<>();
-    private final Map<UUID, Long> pendingSellExpiry = new HashMap<>();
-    private final Map<UUID, ItemStack> pendingSellItem = new HashMap<>();
+    private final Map<UUID, PendingMarketSale> pendingSales = new HashMap<>();
     private final Set<UUID> ignoreNextClose = new HashSet<>();
 
     public MarketManager(MarketplacePlugin plugin, EconomyService economyService, ClaimStorage claimStorage,
@@ -71,10 +75,10 @@ public class MarketManager {
         inventory.setItem(11, GuiItems.button(Material.BOOK, "&aAngebote", List.of("&7Aktuelle Marktangebote ansehen")));
         inventory.setItem(12, GuiItems.button(Material.WRITABLE_BOOK, "&eMeine Angebote",
                 List.of("&7Eigene Marktangebote ansehen", "&7und bei Bedarf abbrechen")));
-        inventory.setItem(13, GuiItems.button(Material.EMERALD, "&6Preis f\u00fcr eingelegtes/Hand-Item: " + priceRange(player),
-                List.of("&7Niedrigster und h\u00f6chster Preis", "&7f\u00fcr das eingelegte Item oder dein Hand-Item")));
+        inventory.setItem(13, GuiItems.button(Material.EMERALD, "&6Preis f\u00fcr Item in Hand: " + priceRange(player),
+                List.of("&7Aktueller Marktbereich", "&7f\u00fcr das Item in deiner Hand")));
         inventory.setItem(15, GuiItems.button(Material.CHEST, "&bVerkaufen",
-                List.of("&7Lege ein Item in Slot 13", "&7und stelle den Preis ein")));
+                List.of("&7Mehrere gleiche Items einlegen", "&7Preisart und Laufzeit w\u00e4hlen")));
         inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zur\u00fcck zum Hauptmen\u00fc")));
         inventory.setItem(22, GuiItems.button(Material.BARREL, "&eAbholfach",
                 List.of("&7Abgelaufene oder ausgelagerte Items")));
@@ -84,7 +88,7 @@ public class MarketManager {
     public void openListingPage(Player player, int page) {
         Inventory inventory = Bukkit.createInventory(new MenuHolder(MenuType.MARKET_LIST, page, ""), 54, "Marktangebote");
         List<MarketListing> sorted = listings.stream()
-                .sorted(Comparator.comparingDouble(MarketListing::getPrice))
+                .sorted(Comparator.comparingDouble(MarketListing::getDisplayPrice))
                 .toList();
         int start = page * 45;
         for (int slot = 0; slot < 45; slot++) {
@@ -120,30 +124,37 @@ public class MarketManager {
     }
 
     public void openSellMenu(Player player) {
-        Double price = pendingSellPrice.get(player.getUniqueId());
-        long expiry = pendingSellExpiry.getOrDefault(player.getUniqueId(), 0L);
-        Inventory inventory = Bukkit.createInventory(new MenuHolder(MenuType.MARKET_SELL), 27, "Marktpreis setzen");
-        ItemStack item = pendingSellItem.get(player.getUniqueId());
-        inventory.setItem(ITEM_SLOT, item == null
-                ? GuiItems.button(Material.HOPPER, "&eItem hier einlegen", List.of("&7Klicke mit Item aus deinem Inventar", "&7auf diesen Slot"))
-                : item.clone());
-        inventory.setItem(10, GuiItems.button(Material.GOLD_NUGGET, "&6Preis fein",
+        PendingMarketSale sale = pendingSale(player.getUniqueId());
+        Inventory inventory = Bukkit.createInventory(new MenuHolder(MenuType.MARKET_SELL), 54, "Marktpreis setzen");
+        for (int i = 0; i < Math.min(SELL_ITEM_SLOTS.length, sale.getItems().size()); i++) {
+            inventory.setItem(SELL_ITEM_SLOTS[i], sale.getItems().get(i).clone());
+        }
+        fillSellDecorations(inventory);
+        inventory.setItem(36, GuiItems.button(Material.PAPER, "&eVerkauf",
+                List.of("&7Items: " + totalAmount(sale) + " St\u00fcck",
+                        "&7Preisart: " + sale.getPriceMode().getLabel(),
+                        "&7Laufzeit: " + expiryLabel(sale.getExpiryDuration()))));
+        inventory.setItem(37, GuiItems.button(Material.GOLD_NUGGET, "&6Preis fein",
                 List.of("&7Links: +1", "&7Rechts: -1", "&7Shift+Links: +10", "&7Shift+Rechts: -10")));
-        inventory.setItem(11, GuiItems.button(Material.GOLD_INGOT, "&6Preis grob",
+        inventory.setItem(38, GuiItems.button(Material.GOLD_INGOT, "&6Preis grob",
                 List.of("&7Links: +100", "&7Rechts: -100", "&7Shift+Links: +1000", "&7Shift+Rechts: -1000")));
-        inventory.setItem(16, GuiItems.button(Material.CLOCK, "&eLaufzeit: " + expiryLabel(expiry),
+        inventory.setItem(39, GuiItems.button(Material.COMPARATOR, "&ePreisart: " + sale.getPriceMode().getLabel(),
+                List.of("&7Klick wechselt zwischen",
+                        "&7Gesamtpreis, Stackpreis, Einzelpreis")));
+        inventory.setItem(40, GuiItems.button(Material.CLOCK, "&eLaufzeit: " + expiryLabel(sale.getExpiryDuration()),
                 List.of("&7Links: n\u00e4chste Laufzeit",
                         "&7Rechts: vorige Laufzeit",
-                        "&7Ohne Auswahl bleibt das Angebot dauerhaft")));
-        inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zur\u00fcck zum Hauptmen\u00fc")));
-        inventory.setItem(15, GuiItems.button(Material.ARROW, "&eZur Markt\u00fcbersicht", List.of("&7Zur\u00fcck ohne Angebot zu erstellen")));
-        inventory.setItem(22, GuiItems.button(Material.EMERALD,
-                price == null ? "&6Angebot erstellen: Preis fehlt" : "&6Angebot erstellen: " + CurrencyFormatter.shortAmount(price),
-                List.of("&7Marktpreis: " + priceRange(player),
-                        "&7Erlaubt: " + allowedRange(player),
-                        "&7Laufzeit: " + expiryLabel(expiry),
-                        "&7Ohne Richtwert ist der erste Preis frei",
-                        price == null ? "&cStelle zuerst selbst einen Preis ein" : "&aKlick zum Einstellen")));
+                        "&7Standard ist dauerhaft")));
+        inventory.setItem(41, GuiItems.button(Material.SUNFLOWER, "&6Preisvorschau", buildPricePreview(player, sale)));
+        inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zum Hauptmen\u00fc")));
+        inventory.setItem(46, GuiItems.button(Material.BOOK, "&aMarktangebote", List.of("&7Zur allgemeinen Angebotsliste")));
+        inventory.setItem(47, GuiItems.button(Material.WRITABLE_BOOK, "&eMeine Angebote", List.of("&7Eigene Angebote anzeigen")));
+        inventory.setItem(48, GuiItems.button(Material.BARREL, "&eAbholfach", List.of("&7Abgelaufene oder ausgelagerte Items")));
+        inventory.setItem(49, GuiItems.button(Material.EMERALD_BLOCK, sale.getPrice() == null ? "&6Preis fehlt" : "&aAngebot erstellen",
+                List.of("&7Preis: " + priceLabel(sale),
+                        "&7Verkauf: " + sale.getPriceMode().getLabel(),
+                        sale.getPrice() == null ? "&cStelle zuerst einen Preis ein" : "&aKlick zum Einstellen")));
+        inventory.setItem(50, GuiItems.button(Material.BARRIER, "&cZur\u00fccksetzen", List.of("&7Eingelegte Items gehen zur\u00fcck")));
         player.openInventory(inventory);
     }
 
@@ -179,7 +190,7 @@ public class MarketManager {
     }
 
     public void handleListingClick(Player player, int rawSlot, int page) {
-        List<MarketListing> sorted = listings.stream().sorted(Comparator.comparingDouble(MarketListing::getPrice)).toList();
+        List<MarketListing> sorted = listings.stream().sorted(Comparator.comparingDouble(MarketListing::getDisplayPrice)).toList();
         if (rawSlot == 45) {
             player.performCommand("marketplace");
             return;
@@ -250,51 +261,90 @@ public class MarketManager {
     }
 
     public void handleSellClick(Player player, InventoryClickEvent event) {
-        if (handleItemPlacement(player, event)) {
-            ignoreNextClose.add(player.getUniqueId());
-            openSellMenu(player);
-            return;
-        }
-        Double currentValue = pendingSellPrice.get(player.getUniqueId());
-        double current = currentValue == null ? 0.0D : currentValue;
-        switch (event.getRawSlot()) {
-            case 10 -> current = Math.max(1, current + resolveStep(event.getClick(), 1, 10));
-            case 11 -> current = Math.max(1, current + resolveStep(event.getClick(), 100, 1000));
-            case 16 -> {
-                long expiry = cycleExpiry(player.getUniqueId(), event.getClick().isRightClick() ? -1 : 1);
-                pendingSellPrice.put(player.getUniqueId(), current);
-                ignoreNextClose.add(player.getUniqueId());
-                openSellMenu(player);
+        PendingMarketSale sale = pendingSale(player.getUniqueId());
+        int rawSlot = event.getRawSlot();
+        int topSize = event.getView().getTopInventory().getSize();
+
+        if (rawSlot < topSize && isSellItemSlot(rawSlot)) {
+            if (!isAllowedSellPlacement(event.getView().getTopInventory(), rawSlot, event.getCursor())) {
+                event.setCancelled(true);
+                MessageUtil.send(player, "Du kannst hier nur exakt gleiche Items ablegen.");
                 return;
             }
-            case 18 -> {
+            event.setCancelled(false);
+            scheduleSellSync(player);
+            return;
+        }
+        if (rawSlot >= topSize) {
+            if (event.getClick().isShiftClick() && !isAllowedShiftInsert(event.getView().getTopInventory(), event.getCurrentItem())) {
+                event.setCancelled(true);
+                MessageUtil.send(player, "Du kannst hier nur exakt gleiche Items ablegen.");
+                return;
+            }
+            event.setCancelled(false);
+            scheduleSellSync(player);
+            return;
+        }
+
+        event.setCancelled(true);
+        syncSaleFromView(sale, event.getView().getTopInventory());
+        Double currentValue = sale.getPrice();
+        double current = currentValue == null ? 0.0D : currentValue;
+        switch (rawSlot) {
+            case 37 -> current = Math.max(1, current + resolveStep(event.getClick(), 1, 10));
+            case 38 -> current = Math.max(1, current + resolveStep(event.getClick(), 100, 1000));
+            case 39 -> sale.setPriceMode(sale.getPriceMode().next());
+            case 40 -> sale.setExpiryDuration(cycleExpiry(sale.getExpiryDuration(), event.getClick().isRightClick() ? -1 : 1));
+            case 45 -> {
                 ignoreNextClose.add(player.getUniqueId());
                 player.performCommand("marketplace");
                 return;
             }
-            case 15 -> {
+            case 46 -> {
                 ignoreNextClose.add(player.getUniqueId());
-                openMain(player);
+                openListingPage(player, 0);
                 return;
             }
-            case 22 -> {
+            case 47 -> {
+                ignoreNextClose.add(player.getUniqueId());
+                openOwnListingPage(player, 0);
+                return;
+            }
+            case 48 -> {
+                ignoreNextClose.add(player.getUniqueId());
+                claimStorage.openClaims(player, 0, ClaimStorage.CONTEXT_MARKET);
+                return;
+            }
+            case 49 -> {
+                if (sale.getItems().isEmpty()) {
+                    MessageUtil.send(player, "Lege zuerst gleiche Verkaufsitems in die oberen Reihen.");
+                    ignoreNextClose.add(player.getUniqueId());
+                    openSellMenu(player);
+                    return;
+                }
                 if (currentValue == null) {
                     MessageUtil.send(player, "Stelle zuerst einen Preis f\u00fcr dein Angebot ein.");
                     ignoreNextClose.add(player.getUniqueId());
                     openSellMenu(player);
                     return;
                 }
-                pendingSellPrice.put(player.getUniqueId(), current);
-                createListing(player, current, pendingSellExpiry.getOrDefault(player.getUniqueId(), 0L));
+                sale.setPrice(current);
+                createListing(player, sale);
                 ignoreNextClose.add(player.getUniqueId());
                 openMain(player);
+                return;
+            }
+            case 50 -> {
+                clearPendingSale(player);
+                ignoreNextClose.add(player.getUniqueId());
+                openSellMenu(player);
                 return;
             }
             default -> {
                 return;
             }
         }
-        pendingSellPrice.put(player.getUniqueId(), current);
+        sale.setPrice(current);
         ignoreNextClose.add(player.getUniqueId());
         openSellMenu(player);
     }
@@ -303,27 +353,24 @@ public class MarketManager {
         if (ignoreNextClose.remove(player.getUniqueId())) {
             return;
         }
-        ItemStack pending = pendingSellItem.remove(player.getUniqueId());
-        if (pending == null) {
-            return;
-        }
-        Map<Integer, ItemStack> rest = player.getInventory().addItem(pending);
-        if (!rest.isEmpty()) {
-            claimStorage.addClaim(player.getUniqueId(), pending, "Markt R\u00fcckgabe", 0, "Nicht eingestelltes Verkaufsitem");
-        }
+        returnPendingItems(player);
     }
 
     public void tick() {
         long now = System.currentTimeMillis();
-        listings.removeIf(listing -> {
+        boolean changed = listings.removeIf(listing -> {
             if (listing.getExpiresAt() <= 0 || listing.getExpiresAt() > now) {
                 return false;
             }
-            claimStorage.addClaim(listing.getSellerId(), listing.getItem(), "Markt abgelaufen", listing.getPrice(),
-                    "Angebot #" + listing.getId() + " ist abgelaufen");
+            for (ItemStack item : splitRemainingItems(listing)) {
+                claimStorage.addClaim(listing.getSellerId(), item, "Markt abgelaufen", listing.getDisplayPrice(),
+                        "Angebot #" + listing.getId() + " ist abgelaufen");
+            }
             return true;
         });
-        save();
+        if (changed) {
+            save();
+        }
     }
 
     public void save() {
@@ -332,8 +379,9 @@ public class MarketManager {
         for (MarketListing listing : listings) {
             String path = "listings." + listing.getId();
             yaml.set(path + ".sellerId", listing.getSellerId().toString());
-            yaml.set(path + ".item", listing.getItem());
-            yaml.set(path + ".price", listing.getPrice());
+            yaml.set(path + ".item", listing.getPrototype());
+            yaml.set(path + ".unitPrice", listing.getUnitPrice());
+            yaml.set(path + ".remainingAmount", listing.getRemainingAmount());
             yaml.set(path + ".createdAt", listing.getCreatedAt());
             yaml.set(path + ".expiresAt", listing.getExpiresAt());
         }
@@ -361,64 +409,57 @@ public class MarketManager {
             if (item == null || sellerId == null) {
                 continue;
             }
-            listings.add(new MarketListing(Integer.parseInt(key), UUID.fromString(sellerId), item,
-                    yaml.getDouble(path + ".price"), yaml.getLong(path + ".createdAt"), yaml.getLong(path + ".expiresAt")));
+            double unitPrice = yaml.contains(path + ".unitPrice")
+                    ? yaml.getDouble(path + ".unitPrice")
+                    : yaml.getDouble(path + ".price") / Math.max(1, item.getAmount());
+            int remainingAmount = yaml.getInt(path + ".remainingAmount", Math.max(1, item.getAmount()));
+            ItemStack prototype = item.clone();
+            prototype.setAmount(1);
+            listings.add(new MarketListing(Integer.parseInt(key), UUID.fromString(sellerId), prototype,
+                    unitPrice, remainingAmount, yaml.getLong(path + ".createdAt"), yaml.getLong(path + ".expiresAt")));
         }
     }
 
-    private boolean handleItemPlacement(Player player, InventoryClickEvent event) {
-        int rawSlot = event.getRawSlot();
-        if (rawSlot == ITEM_SLOT) {
-            ItemStack cursor = event.getCursor();
-            ItemStack pending = pendingSellItem.get(player.getUniqueId());
-            if (cursor != null && !cursor.getType().isAir()) {
-                pendingSellItem.put(player.getUniqueId(), cursor.clone());
-                event.setCursor(pending == null ? null : pending.clone());
-                return true;
-            }
-            if (pending != null) {
-                event.setCursor(pending.clone());
-                pendingSellItem.remove(player.getUniqueId());
-                return true;
-            }
-        }
-        if (rawSlot >= event.getView().getTopInventory().getSize()) {
-            ItemStack clicked = event.getCurrentItem();
-            if (clicked != null && !clicked.getType().isAir()) {
-                ItemStack oldPending = pendingSellItem.put(player.getUniqueId(), clicked.clone());
-                event.setCurrentItem(oldPending == null ? new ItemStack(Material.AIR) : oldPending);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void createListing(Player player, double price, long expiryDuration) {
-        ItemStack listed = pendingSellItem.remove(player.getUniqueId());
-        if (listed == null || listed.getType().isAir()) {
-            MessageUtil.send(player, "Lege zuerst ein Verkaufsitem in den vorgesehenen Slot.");
+    private void createListing(Player player, PendingMarketSale sale) {
+        if (sale.getItems().isEmpty()) {
+            MessageUtil.send(player, "Lege zuerst gleiche Verkaufsitems in die oberen Reihen.");
             return;
         }
-        if (!priceGuideManager.isPriceAllowed(listed, price)) {
-            pendingSellItem.put(player.getUniqueId(), listed);
-            MessageUtil.send(player, "Preis ausserhalb des erlaubten Bereichs: " + priceGuideManager.allowedRangeText(listed));
+        if (sale.getPrice() == null) {
+            MessageUtil.send(player, "Stelle zuerst einen Preis f\u00fcr dein Angebot ein.");
             return;
         }
-        pendingSellExpiry.remove(player.getUniqueId());
-        MarketListing listing = new MarketListing(nextId.getAndIncrement(), player.getUniqueId(), listed.clone(), price,
-                System.currentTimeMillis(), expiryDuration <= 0 ? 0L : System.currentTimeMillis() + expiryDuration);
+        ItemStack prototype = normalizePrototype(sale.getItems().get(0));
+        int totalAmount = totalAmount(sale);
+        double unitPrice = resolveUnitPrice(sale.getPrice(), sale.getPriceMode(), prototype, totalAmount);
+        if (!priceGuideManager.isPriceAllowed(prototype, unitPrice)) {
+            MessageUtil.send(player, "Preis ausserhalb des erlaubten Bereichs: " + priceGuideManager.allowedRangeText(prototype));
+            return;
+        }
+        MarketListing listing = new MarketListing(
+                nextId.getAndIncrement(),
+                player.getUniqueId(),
+                prototype,
+                unitPrice,
+                totalAmount,
+                System.currentTimeMillis(),
+                sale.getExpiryDuration() <= 0 ? 0L : System.currentTimeMillis() + sale.getExpiryDuration()
+        );
         listings.add(listing);
-        priceGuideManager.registerObservation(listed, price);
+        priceGuideManager.registerObservation(prototype, unitPrice);
+        pendingSales.remove(player.getUniqueId());
         save();
-        MessageUtil.send(player, "Marktangebot #" + listing.getId() + " f\u00fcr " + CurrencyFormatter.shortAmount(price) + " erstellt.");
+        MessageUtil.send(player, "Marktangebot #" + listing.getId() + " erstellt.");
     }
 
     private void cancelOwnListing(Player player, MarketListing listing) {
         listings.remove(listing);
-        Map<Integer, ItemStack> rest = player.getInventory().addItem(listing.getItem());
-        if (!rest.isEmpty()) {
-            claimStorage.addClaim(player.getUniqueId(), listing.getItem(), "Marktangebot abgebrochen", listing.getPrice(),
-                    "Abgebrochenes Angebot #" + listing.getId());
+        for (ItemStack item : splitRemainingItems(listing)) {
+            Map<Integer, ItemStack> rest = player.getInventory().addItem(item);
+            if (!rest.isEmpty()) {
+                claimStorage.addClaim(player.getUniqueId(), item, "Marktangebot abgebrochen", listing.getDisplayPrice(),
+                        "Abgebrochenes Angebot #" + listing.getId());
+            }
         }
         save();
         MessageUtil.send(player, "Angebot #" + listing.getId() + " abgebrochen.");
@@ -430,34 +471,40 @@ public class MarketManager {
             MessageUtil.send(player, "Angebot nicht gefunden.");
             return;
         }
-        if (!economyService.withdraw(player.getUniqueId(), listing.getPrice())) {
+        double price = listing.getDisplayPrice();
+        if (!economyService.withdraw(player.getUniqueId(), price)) {
             MessageUtil.send(player, "Nicht genug CraftTaler.");
             return;
         }
-        economyService.deposit(listing.getSellerId(), listing.getPrice());
-        Map<Integer, ItemStack> rest = player.getInventory().addItem(listing.getItem());
+        economyService.deposit(listing.getSellerId(), price);
+        ItemStack bought = listing.removeDisplayAmount();
+        Map<Integer, ItemStack> rest = player.getInventory().addItem(bought);
         if (!rest.isEmpty()) {
-            claimStorage.addClaim(player.getUniqueId(), listing.getItem(), "Marktkauf", listing.getPrice(),
+            claimStorage.addClaim(player.getUniqueId(), bought, "Marktkauf", price,
                     "Gekauft von Angebot #" + listing.getId());
         }
-        listings.remove(listing);
+        if (listing.isEmpty()) {
+            listings.remove(listing);
+        }
         save();
         MessageUtil.send(player, "Angebot gekauft.");
     }
 
     private ItemStack createListingDisplay(Player viewer, MarketListing listing) {
-        ItemStack display = listing.getItem().clone();
+        ItemStack display = listing.createDisplayItem();
         ItemMeta meta = display.getItemMeta();
         List<String> lore = meta != null && meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
         lore.add(" ");
         lore.add("\u00A77Angebot: \u00A7f#" + listing.getId());
-        lore.add("\u00A77Preis: \u00A76" + CurrencyFormatter.shortAmount(listing.getPrice()));
+        lore.add("\u00A77Preis jetzt: \u00A76" + CurrencyFormatter.shortAmount(listing.getDisplayPrice()));
+        lore.add("\u00A77Einzelpreis: \u00A76" + CurrencyFormatter.shortAmount(listing.getUnitPrice()));
+        lore.add("\u00A77Verbleibend: \u00A7f" + listing.getRemainingAmount());
         lore.add("\u00A77Laufzeit: " + listingExpiryLabel(listing));
         if (listing.getSellerId().equals(viewer.getUniqueId())) {
             lore.add("\u00A7eEigenes Angebot");
             lore.add("\u00A7cKlick zum Abbrechen");
         } else {
-            lore.add("\u00A7aKlick zum Kaufen");
+            lore.add("\u00A7aKlick kauft die sichtbare Menge");
         }
         if (meta != null) {
             meta.setLore(lore);
@@ -467,12 +514,14 @@ public class MarketManager {
     }
 
     private ItemStack createOwnListingDisplay(MarketListing listing) {
-        ItemStack display = listing.getItem().clone();
+        ItemStack display = listing.createDisplayItem();
         ItemMeta meta = display.getItemMeta();
         List<String> lore = meta != null && meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
         lore.add(" ");
         lore.add("\u00A77Angebot: \u00A7f#" + listing.getId());
-        lore.add("\u00A77Preis: \u00A76" + CurrencyFormatter.shortAmount(listing.getPrice()));
+        lore.add("\u00A77Preis jetzt: \u00A76" + CurrencyFormatter.shortAmount(listing.getDisplayPrice()));
+        lore.add("\u00A77Einzelpreis: \u00A76" + CurrencyFormatter.shortAmount(listing.getUnitPrice()));
+        lore.add("\u00A77Verbleibend: \u00A7f" + listing.getRemainingAmount());
         lore.add("\u00A77Laufzeit: " + listingExpiryLabel(listing));
         lore.add("\u00A7cKlick zum Abbrechen");
         if (meta != null) {
@@ -482,11 +531,171 @@ public class MarketManager {
         return display;
     }
 
+    private PendingMarketSale pendingSale(UUID playerId) {
+        return pendingSales.computeIfAbsent(playerId, ignored -> new PendingMarketSale());
+    }
+
+    private void clearPendingSale(Player player) {
+        returnPendingItems(player);
+        pendingSales.remove(player.getUniqueId());
+    }
+
+    private void returnPendingItems(Player player) {
+        PendingMarketSale sale = pendingSales.get(player.getUniqueId());
+        if (sale == null || sale.getItems().isEmpty()) {
+            return;
+        }
+        for (ItemStack item : sale.getItems()) {
+            Map<Integer, ItemStack> rest = player.getInventory().addItem(item);
+            if (!rest.isEmpty()) {
+                claimStorage.addClaim(player.getUniqueId(), item, "Markt R\u00fcckgabe", 0, "Nicht eingestelltes Verkaufsitem");
+            }
+        }
+        sale.getItems().clear();
+        sale.setPrice(null);
+        sale.setExpiryDuration(0L);
+        sale.setPriceMode(MarketPriceMode.TOTAL);
+    }
+
+    private void scheduleSellSync(Player player) {
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (!(player.getOpenInventory().getTopInventory().getHolder() instanceof MenuHolder holder)
+                    || holder.getType() != MenuType.MARKET_SELL) {
+                return;
+            }
+            syncSaleFromView(pendingSale(player.getUniqueId()), player.getOpenInventory().getTopInventory());
+        });
+    }
+
+    private void syncSaleFromView(PendingMarketSale sale, Inventory inventory) {
+        List<ItemStack> updated = new ArrayList<>();
+        ItemStack reference = null;
+        for (int slot : SELL_ITEM_SLOTS) {
+            ItemStack item = inventory.getItem(slot);
+            if (item == null || item.getType().isAir()) {
+                continue;
+            }
+            if (reference == null) {
+                reference = normalizePrototype(item);
+            }
+            if (!reference.isSimilar(normalizePrototype(item))) {
+                continue;
+            }
+            updated.add(item.clone());
+        }
+        sale.getItems().clear();
+        sale.getItems().addAll(updated);
+    }
+
+    private boolean isAllowedSellPlacement(Inventory inventory, int rawSlot, ItemStack cursor) {
+        if (cursor == null || cursor.getType().isAir()) {
+            return true;
+        }
+        ItemStack reference = sellReference(inventory, rawSlot);
+        return reference == null || reference.isSimilar(normalizePrototype(cursor));
+    }
+
+    private boolean isAllowedShiftInsert(Inventory inventory, ItemStack currentItem) {
+        if (currentItem == null || currentItem.getType().isAir()) {
+            return true;
+        }
+        ItemStack reference = sellReference(inventory, -1);
+        return reference == null || reference.isSimilar(normalizePrototype(currentItem));
+    }
+
+    private ItemStack sellReference(Inventory inventory, int ignoredSlot) {
+        for (int slot : SELL_ITEM_SLOTS) {
+            if (slot == ignoredSlot) {
+                continue;
+            }
+            ItemStack item = inventory.getItem(slot);
+            if (item != null && !item.getType().isAir()) {
+                return normalizePrototype(item);
+            }
+        }
+        return null;
+    }
+
+    private ItemStack normalizePrototype(ItemStack item) {
+        ItemStack normalized = item.clone();
+        normalized.setAmount(1);
+        return normalized;
+    }
+
+    private List<String> buildPricePreview(Player player, PendingMarketSale sale) {
+        List<String> lore = new ArrayList<>();
+        int totalAmount = totalAmount(sale);
+        if (totalAmount <= 0) {
+            lore.add("&7Lege zuerst gleiche Items ein");
+            return lore;
+        }
+        int stackSize = Math.max(1, normalizePrototype(sale.getItems().get(0)).getMaxStackSize());
+        int currentOfferAmount = Math.min(totalAmount, stackSize);
+        lore.add("&7Gesamtmenge: " + totalAmount);
+        lore.add("&7Sichtbare Kaufmenge: " + currentOfferAmount);
+        lore.add("&7Marktbereich: " + allowedRange(player));
+        if (sale.getPrice() == null) {
+            lore.add("&cNoch kein Preis gesetzt");
+            return lore;
+        }
+        double unitPrice = resolveUnitPrice(sale.getPrice(), sale.getPriceMode(), normalizePrototype(sale.getItems().get(0)), totalAmount);
+        lore.add("&7Eingabe: " + CurrencyFormatter.shortAmount(sale.getPrice()));
+        lore.add("&7Einzelpreis: " + CurrencyFormatter.shortAmount(unitPrice));
+        lore.add("&7Kaufpreis jetzt: " + CurrencyFormatter.shortAmount(unitPrice * currentOfferAmount));
+        return lore;
+    }
+
+    private double resolveUnitPrice(double configuredPrice, MarketPriceMode priceMode, ItemStack prototype, int totalAmount) {
+        int stackSize = Math.max(1, prototype.getMaxStackSize());
+        return switch (priceMode) {
+            case TOTAL -> configuredPrice / Math.max(1, totalAmount);
+            case STACK -> configuredPrice / stackSize;
+            case SINGLE -> configuredPrice;
+        };
+    }
+
     private List<MarketListing> ownListings(UUID playerId) {
         return listings.stream()
                 .filter(listing -> listing.getSellerId().equals(playerId))
                 .sorted(Comparator.comparingLong(MarketListing::getCreatedAt).reversed())
                 .toList();
+    }
+
+    private void fillSellDecorations(Inventory inventory) {
+        ItemStack glass = GuiItems.button(Material.BLACK_STAINED_GLASS_PANE, " ", List.of());
+        for (int slot = 36; slot <= 44; slot++) {
+            inventory.setItem(slot, glass);
+        }
+        for (int slot = 45; slot <= 53; slot++) {
+            inventory.setItem(slot, glass);
+        }
+    }
+
+    private boolean isSellItemSlot(int slot) {
+        for (int candidate : SELL_ITEM_SLOTS) {
+            if (candidate == slot) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private int totalAmount(PendingMarketSale sale) {
+        return sale.getItems().stream().mapToInt(ItemStack::getAmount).sum();
+    }
+
+    private List<ItemStack> splitRemainingItems(MarketListing listing) {
+        List<ItemStack> items = new ArrayList<>();
+        int amount = listing.getRemainingAmount();
+        int stackSize = Math.max(1, listing.getPrototype().getMaxStackSize());
+        while (amount > 0) {
+            int next = Math.min(amount, stackSize);
+            ItemStack item = listing.getPrototype().clone();
+            item.setAmount(next);
+            items.add(item);
+            amount -= next;
+        }
+        return items;
     }
 
     private String priceRange(Player player) {
@@ -495,13 +704,14 @@ public class MarketManager {
             return "keine Daten";
         }
         List<MarketListing> matching = listings.stream()
-                .filter(listing -> listing.getItem().isSimilar(reference))
-                .sorted(Comparator.comparingDouble(MarketListing::getPrice))
+                .filter(listing -> listing.getPrototype().isSimilar(normalizePrototype(reference)))
+                .sorted(Comparator.comparingDouble(MarketListing::getUnitPrice))
                 .toList();
         if (matching.isEmpty()) {
             return "keine Daten";
         }
-        return (int) matching.get(0).getPrice() + " - " + (int) matching.get(matching.size() - 1).getPrice();
+        return CurrencyFormatter.shortAmount(matching.get(0).getUnitPrice()) + " - "
+                + CurrencyFormatter.shortAmount(matching.get(matching.size() - 1).getUnitPrice());
     }
 
     private String allowedRange(Player player) {
@@ -509,13 +719,13 @@ public class MarketManager {
         if (reference == null) {
             return "frei";
         }
-        return priceGuideManager.allowedRangeText(reference);
+        return priceGuideManager.allowedRangeText(normalizePrototype(reference));
     }
 
     private ItemStack currentReference(Player player) {
-        ItemStack reference = pendingSellItem.get(player.getUniqueId());
-        if (reference != null && !reference.getType().isAir()) {
-            return reference;
+        PendingMarketSale sale = pendingSales.get(player.getUniqueId());
+        if (sale != null && !sale.getItems().isEmpty()) {
+            return sale.getItems().get(0);
         }
         ItemStack hand = player.getInventory().getItemInMainHand();
         return hand == null || hand.getType().isAir() ? null : hand;
@@ -532,8 +742,7 @@ public class MarketManager {
         return 0;
     }
 
-    private long cycleExpiry(UUID playerId, int direction) {
-        long current = pendingSellExpiry.getOrDefault(playerId, 0L);
+    private long cycleExpiry(long current, int direction) {
         int index = 0;
         for (int i = 0; i < EXPIRY_OPTIONS.length; i++) {
             if (EXPIRY_OPTIONS[i] == current) {
@@ -541,10 +750,11 @@ public class MarketManager {
                 break;
             }
         }
-        int nextIndex = Math.floorMod(index + direction, EXPIRY_OPTIONS.length);
-        long next = EXPIRY_OPTIONS[nextIndex];
-        pendingSellExpiry.put(playerId, next);
-        return next;
+        return EXPIRY_OPTIONS[Math.floorMod(index + direction, EXPIRY_OPTIONS.length)];
+    }
+
+    private String priceLabel(PendingMarketSale sale) {
+        return sale.getPrice() == null ? "-" : CurrencyFormatter.shortAmount(sale.getPrice());
     }
 
     private String expiryLabel(long expiryDuration) {
@@ -576,5 +786,3 @@ public class MarketManager {
         return minutes + " Minute" + (minutes == 1 ? "" : "n");
     }
 }
-
-
