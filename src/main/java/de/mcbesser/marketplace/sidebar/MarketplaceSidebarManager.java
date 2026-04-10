@@ -1,4 +1,4 @@
-package de.mcbesser.marketplace.sidebar;
+﻿package de.mcbesser.marketplace.sidebar;
 
 import de.mcbesser.marketplace.EconomyService;
 import de.mcbesser.marketplace.MarketplacePlugin;
@@ -67,7 +67,7 @@ public class MarketplaceSidebarManager {
         if (unreadMail > 0) {
             lines.add("\u00A70");
             lines.add("\u00A76Postfach");
-            lines.add("\u00A7f" + unreadMail + " neue Mail" + (unreadMail == 1 ? "" : "s"));
+            lines.add("\u00A7f" + unreadMail + " ne\u00fc Mail" + (unreadMail == 1 ? "" : "s"));
         }
 
         PlayerJob pinned = jobManager.getPinnedJob(player.getUniqueId());

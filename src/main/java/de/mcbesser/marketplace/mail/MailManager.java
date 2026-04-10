@@ -1,4 +1,4 @@
-package de.mcbesser.marketplace.mail;
+﻿package de.mcbesser.marketplace.mail;
 
 import de.mcbesser.marketplace.EconomyService;
 import de.mcbesser.marketplace.MarketplacePlugin;
@@ -201,7 +201,7 @@ public class MailManager {
         }
         inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zum Hauptmen\u00fc")));
         inventory.setItem(46, GuiItems.button(Material.ARROW, "&eZur\u00fcck", List.of("&7Vorherige Seite")));
-        inventory.setItem(49, GuiItems.button(Material.PLAYER_HEAD, "&eMail senden", List.of("&7Neue Spieler-Mail verfassen")));
+        inventory.setItem(49, GuiItems.button(Material.PLAYER_HEAD, "&eMail senden", List.of("&7Ne\u00fc Spieler-Mail verfassen")));
         inventory.setItem(53, GuiItems.button(Material.ARROW, "&eWeiter", List.of("&7N\u00e4chste Seite")));
         player.openInventory(inventory);
     }
@@ -610,7 +610,7 @@ public class MailManager {
         MessageUtil.send(player, "Mail an " + draft.getRecipientName() + " gesendet.");
         Player recipient = Bukkit.getPlayer(draft.getRecipientId());
         if (recipient != null) {
-            MessageUtil.sendActions(recipient, "Du hast neue Spieler-Mail von " + player.getName() + ".",
+            MessageUtil.sendActions(recipient, "Du hast ne\u00fc Spieler-Mail von " + player.getName() + ".",
                     MessageUtil.action("Postfach \u00f6ffnen", "mail"),
                     MessageUtil.action("Marktplatz", "marketplace"));
         }

@@ -1,4 +1,4 @@
-package de.mcbesser.marketplace.market;
+﻿package de.mcbesser.marketplace.market;
 
 import de.mcbesser.marketplace.EconomyService;
 import de.mcbesser.marketplace.MarketplacePlugin;
@@ -144,7 +144,7 @@ public class MarketManager {
         inventory.setItem(40, GuiItems.button(Material.CLOCK, "&eLaufzeit: " + expiryLabel(sale.getExpiryDuration()),
                 List.of("&7Links: n\u00e4chste Laufzeit",
                         "&7Rechts: vorige Laufzeit",
-                        "&7Standard ist dauerhaft")));
+                        "&7Standard ist da\u00fcrhaft")));
         inventory.setItem(41, GuiItems.button(Material.SUNFLOWER, "&6Preisvorschau", buildPricePreview(player, sale)));
         inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zum Hauptmen\u00fc")));
         inventory.setItem(46, GuiItems.button(Material.BOOK, "&aMarktangebote", List.of("&7Zur allgemeinen Angebotsliste")));

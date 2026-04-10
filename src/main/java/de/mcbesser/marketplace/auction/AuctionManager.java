@@ -1,4 +1,4 @@
-package de.mcbesser.marketplace.auction;
+﻿package de.mcbesser.marketplace.auction;
 
 import de.mcbesser.marketplace.EconomyService;
 import de.mcbesser.marketplace.MarketplacePlugin;
@@ -60,13 +60,13 @@ public class AuctionManager {
                 List.of("&7Links: +1", "&7Rechts: -1", "&7Shift+Links: +10", "&7Shift+Rechts: -10")));
         inventory.setItem(11, GuiItems.button(Material.GOLD_INGOT, "&6Preis grob",
                 List.of("&7Links: +100", "&7Rechts: -100", "&7Shift+Links: +1000", "&7Shift+Rechts: -1000")));
-        inventory.setItem(12, GuiItems.button(Material.CLOCK, "&eDauer: " + seconds + "s",
+        inventory.setItem(12, GuiItems.button(Material.CLOCK, "&eDa\u00fcr: " + seconds + "s",
                 List.of("&7Klick: +30 Sekunden", "&7Ab 180 Sekunden wieder auf 30")));
         inventory.setItem(ITEM_SLOT, pending == null
                 ? GuiItems.button(Material.HOPPER, "&eItem hier einlegen", List.of("&7Klicke mit Item aus deinem Inventar", "&7auf diesen Slot"))
                 : pending.clone());
         inventory.setItem(15, GuiItems.button(Material.EMERALD_BLOCK, "&aAuktion starten",
-                List.of("&7Startpreis: " + CurrencyFormatter.shortAmount(startPrice), "&7Dauer: " + seconds + " Sekunden", "&7Gebote laufen im Chat")));
+                List.of("&7Startpreis: " + CurrencyFormatter.shortAmount(startPrice), "&7Da\u00fcr: " + seconds + " Sekunden", "&7Gebote laufen im Chat")));
         inventory.setItem(18, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zur\u00fcck zum Hauptmen\u00fc")));
         inventory.setItem(22, activeAuctionDisplay());
         inventory.setItem(26, GuiItems.button(Material.BARREL, "&eAbholfach", List.of("&7Auktionsr\u00fcckgaben und Gewinne")));

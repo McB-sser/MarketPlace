@@ -1,4 +1,4 @@
-package de.mcbesser.marketplace.jobs;
+﻿package de.mcbesser.marketplace.jobs;
 
 import de.mcbesser.marketplace.EconomyService;
 import de.mcbesser.marketplace.MarketplacePlugin;
@@ -959,7 +959,7 @@ public class JobManager {
 
     private List<JobDefinition> buildDefinitions() {
         List<JobDefinition> list = new ArrayList<>();
-        list.add(new JobDefinition("farmer_mix", "Bauerngut", List.of(
+        list.add(new JobDefinition("farmer_mix", "Ba\u00fcrngut", List.of(
                 new JobDefinition.JobRequirement(Material.WHEAT, 160),
                 new JobDefinition.JobRequirement(Material.CARROT, 96)
         ), 12, 180, 1440));
