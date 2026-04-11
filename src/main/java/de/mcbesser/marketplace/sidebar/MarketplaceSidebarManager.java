@@ -1,4 +1,4 @@
-﻿package de.mcbesser.marketplace.sidebar;
+package de.mcbesser.marketplace.sidebar;
 
 import de.mcbesser.marketplace.EconomyService;
 import de.mcbesser.marketplace.MarketplacePlugin;

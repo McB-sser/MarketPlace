@@ -1,4 +1,4 @@
-﻿package de.mcbesser.marketplace.mail;
+package de.mcbesser.marketplace.mail;
 
 import de.mcbesser.marketplace.EconomyService;
 import de.mcbesser.marketplace.MarketplacePlugin;

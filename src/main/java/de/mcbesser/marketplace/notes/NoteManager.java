@@ -1,4 +1,4 @@
-﻿package de.mcbesser.marketplace.notes;
+package de.mcbesser.marketplace.notes;
 
 import de.mcbesser.marketplace.MarketplacePlugin;
 import de.mcbesser.marketplace.gui.GuiItems;

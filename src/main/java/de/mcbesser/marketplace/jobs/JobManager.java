@@ -1,4 +1,4 @@
-﻿package de.mcbesser.marketplace.jobs;
+package de.mcbesser.marketplace.jobs;
 
 import de.mcbesser.marketplace.EconomyService;
 import de.mcbesser.marketplace.MarketplacePlugin;

@@ -1,4 +1,4 @@
-﻿package de.mcbesser.marketplace.storage;
+package de.mcbesser.marketplace.storage;
 
 import de.mcbesser.marketplace.MarketplacePlugin;
 import de.mcbesser.marketplace.gui.GuiItems;
