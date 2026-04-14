@@ -1,5 +1,6 @@
 package de.mcbesser.marketplace.gui;
 
+import de.mcbesser.marketplace.profile.PlayerHeadCache;
 import java.util.ArrayList;
 import java.util.List;
 import org.bukkit.ChatColor;
@@ -29,11 +30,11 @@ public final class GuiItems {
         return item;
     }
 
-    public static ItemStack playerHead(OfflinePlayer player, String name, List<String> lore) {
+    public static ItemStack playerHead(OfflinePlayer player, String name, List<String> lore, PlayerHeadCache headCache) {
         ItemStack item = button(Material.PLAYER_HEAD, name, lore);
         ItemMeta baseMeta = item.getItemMeta();
         if (baseMeta instanceof SkullMeta meta) {
-            meta.setOwningPlayer(player);
+            headCache.applyCachedProfile(meta, player);
             item.setItemMeta(meta);
         }
         return item;

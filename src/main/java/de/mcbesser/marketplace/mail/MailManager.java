@@ -71,7 +71,7 @@ public class MailManager {
         for (int slot = 0; slot < Math.min(45, targets.size()); slot++) {
             OfflinePlayer target = targets.get(slot);
             inventory.setItem(slot, GuiItems.playerHead(target, "&a" + safeName(target),
-                    List.of(statusLine(target), "&7Klick zum Mail-Entwurf")));
+                    List.of(statusLine(target), "&7Klick zum Mail-Entwurf"), plugin.getPlayerHeadCache()));
         }
         inventory.setItem(45, GuiItems.button(Material.COMPASS, "&aMarktplatz", List.of("&7Zum Hauptmen\u00fc")));
         inventory.setItem(46, GuiItems.button(Material.SPYGLASS, "&eAktualisieren", List.of("&7Spielerliste neu laden")));

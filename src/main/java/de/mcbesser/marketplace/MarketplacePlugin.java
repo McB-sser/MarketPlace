@@ -7,6 +7,7 @@ import de.mcbesser.marketplace.mail.MailManager;
 import de.mcbesser.marketplace.market.MarketManager;
 import de.mcbesser.marketplace.notes.NoteManager;
 import de.mcbesser.marketplace.pricing.PriceGuideManager;
+import de.mcbesser.marketplace.profile.PlayerHeadCache;
 import de.mcbesser.marketplace.sidebar.MarketplaceSidebarManager;
 import de.mcbesser.marketplace.storage.ClaimStorage;
 import de.mcbesser.marketplace.trade.TradeManager;
@@ -32,6 +33,7 @@ public class MarketplacePlugin extends JavaPlugin {
     private AuctionManager auctionManager;
     private MarketplaceMenu marketplaceMenu;
     private MarketplaceSidebarManager marketplaceSidebarManager;
+    private PlayerHeadCache playerHeadCache;
 
     @Override
     public void onEnable() {
@@ -53,6 +55,7 @@ public class MarketplacePlugin extends JavaPlugin {
             auctionManager = new AuctionManager(this, economyService, claimStorage);
             marketplaceMenu = new MarketplaceMenu(jobManager, marketManager, lottoManager, mailManager, tradeManager, auctionManager, claimStorage, noteManager);
             marketplaceSidebarManager = new MarketplaceSidebarManager(this, economyService, jobManager, auctionManager, mailManager);
+            playerHeadCache = new PlayerHeadCache(this, "player-head-cache.yml");
         } catch (IOException exception) {
             getLogger().severe("Initialisierung fehlgeschlagen: " + exception.getMessage());
             Bukkit.getPluginManager().disablePlugin(this);
@@ -124,6 +127,10 @@ public class MarketplacePlugin extends JavaPlugin {
         registerCommand("trade", new TradeCommand(tradeManager));
         registerCommand("auction", new AuctionCommand(auctionManager));
         registerCommand("lotto", new de.mcbesser.marketplace.lotto.LottoCommand(lottoManager));
+    }
+
+    public PlayerHeadCache getPlayerHeadCache() {
+        return playerHeadCache;
     }
 
     private void registerCommand(String name, org.bukkit.command.CommandExecutor executor) {
