@@ -79,9 +79,9 @@ public class MarketplacePlugin extends JavaPlugin {
             lottoManager.tick();
             tradeManager.tick();
             auctionManager.tick();
-        }, 20L, 20L * 60L);
+        }, 71L, 20L * 60L);
 
-        Bukkit.getScheduler().runTaskTimer(this, marketplaceSidebarManager::tick, 20L, 20L * 5L);
+        Bukkit.getScheduler().runTaskTimer(this, marketplaceSidebarManager::tick, 29L, 20L * 5L);
     }
 
     @Override
