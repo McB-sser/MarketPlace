@@ -507,7 +507,7 @@ public class JobManager {
         inventory.setItem(48, stepButton("-100 CT"));
         inventory.setItem(49, stepButton("-10 CT"));
         inventory.setItem(50, GuiItems.button(Material.SUNFLOWER, "&6Budget: " + CurrencyFormatter.shortAmount(state.getReward()),
-                List.of("&7Links +1 | Rechts -1", "&7Shift-Klick: Marktpreis \u00fcbernehmen",
+                List.of("&7Links +1 | Rechts -1", "&7Ducken + Klick: Marktpreis \u00fcbernehmen",
                         "&7Maximal verf\u00fcgbar: " + CurrencyFormatter.shortAmount(economyService.getBalance(player.getUniqueId())))));
         inventory.setItem(51, stepButton("+10 CT"));
         inventory.setItem(52, stepButton("+100 CT"));
@@ -530,7 +530,7 @@ public class JobManager {
         } else {
             lore.add("\u00A7aLinksklick: aus Inventar/Kiste abgeben");
             lore.add("\u00A7eRechtsklick: anpinnen/l\u00f6sen");
-            lore.add("\u00A7bShift-Klick: Job-Kiste \u00f6ffnen");
+            lore.add("\u00A7bDucken + Klick: Job-Kiste \u00f6ffnen");
         }
         if (job.getInstanceId().equals(getProfile(player.getUniqueId()).getPinnedJobInstanceId())) {
             lore.add("\u00A76Aktuell angepinnt");

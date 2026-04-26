@@ -141,8 +141,8 @@ public class TradeManager {
         inventory.setItem(49, GuiItems.button(Material.GOLD_BLOCK, "\u00A76CT +/-100", List.of(
                 "\u00A77Linksklick: +100",
                 "\u00A77Rechtsklick: -100",
-                "\u00A77Shift-Linksklick: +1000",
-                "\u00A77Shift-Rechtsklick: -1000")));
+                "\u00A77Ducken + Linksklick: +1000",
+                "\u00A77Ducken + Rechtsklick: -1000")));
         inventory.setItem(50, GuiItems.button(Material.BARREL, "\u00A7eAbholfach", List.of("\u00A77Handelsgewinne und R\u00fcckgaben")));
         inventory.setItem(52, GuiItems.button(Material.EMERALD_BLOCK, "\u00A7aBest\u00e4tigen", List.of(statusLine(session, first), "\u00A77Beide Seiten m\u00fcssen best\u00e4tigen")));
         inventory.setItem(53, GuiItems.button(Material.REDSTONE_BLOCK, "\u00A7cAbbrechen", List.of("\u00A77Handel beenden")));

@@ -135,9 +135,9 @@ public class MarketManager {
                         "&7Preisart: " + sale.getPriceMode().getLabel(),
                         "&7Laufzeit: " + expiryLabel(sale.getExpiryDuration()))));
         inventory.setItem(37, GuiItems.button(Material.GOLD_NUGGET, "&6Preis fein",
-                List.of("&7Links: +1", "&7Rechts: -1", "&7Shift+Links: +10", "&7Shift+Rechts: -10")));
+                List.of("&7Links: +1", "&7Rechts: -1", "&7Ducken + Links: +10", "&7Ducken + Rechts: -10")));
         inventory.setItem(38, GuiItems.button(Material.GOLD_INGOT, "&6Preis grob",
-                List.of("&7Links: +100", "&7Rechts: -100", "&7Shift+Links: +1000", "&7Shift+Rechts: -1000")));
+                List.of("&7Links: +100", "&7Rechts: -100", "&7Ducken + Links: +1000", "&7Ducken + Rechts: -1000")));
         inventory.setItem(39, GuiItems.button(Material.COMPARATOR, "&ePreisart: " + sale.getPriceMode().getLabel(),
                 List.of("&7Klick wechselt zwischen",
                         "&7Gesamtpreis, Stackpreis, Einzelpreis")));

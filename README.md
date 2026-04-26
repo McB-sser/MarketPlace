@@ -280,7 +280,7 @@ So benutzt man Jobs:
 2. `Jobs` waehlen.
 3. Einen aktiven Job anklicken, um passende Items aus Inventar und Job-Kiste abzugeben.
 4. Per Rechtsklick einen Job anpinnen oder loesen.
-5. Per Shift-Klick die Job-Kiste oeffnen.
+5. Per Ducken + Klick die Job-Kiste oeffnen.
 
 Die Job-Kiste:
 

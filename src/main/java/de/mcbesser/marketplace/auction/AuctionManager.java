@@ -57,9 +57,9 @@ public class AuctionManager {
         ItemStack pending = pendingAuctionItem.get(player.getUniqueId());
 
         inventory.setItem(10, GuiItems.button(Material.GOLD_NUGGET, "&6Preis fein",
-                List.of("&7Links: +1", "&7Rechts: -1", "&7Shift+Links: +10", "&7Shift+Rechts: -10")));
+                List.of("&7Links: +1", "&7Rechts: -1", "&7Ducken + Links: +10", "&7Ducken + Rechts: -10")));
         inventory.setItem(11, GuiItems.button(Material.GOLD_INGOT, "&6Preis grob",
-                List.of("&7Links: +100", "&7Rechts: -100", "&7Shift+Links: +1000", "&7Shift+Rechts: -1000")));
+                List.of("&7Links: +100", "&7Rechts: -100", "&7Ducken + Links: +1000", "&7Ducken + Rechts: -1000")));
         inventory.setItem(12, GuiItems.button(Material.CLOCK, "&eDa\u00fcr: " + seconds + "s",
                 List.of("&7Klick: +30 Sekunden", "&7Ab 180 Sekunden wieder auf 30")));
         inventory.setItem(ITEM_SLOT, pending == null
